@@ -1,0 +1,250 @@
+/* Komponen Tambahan UI/UX SIM Mutasi Siswa */
+
+/* Tabel vs Kartu Desktop/Mobile Switching */
+.dt-desk { display: none; }
+.dt-kartu { display: grid; gap: 0.75rem; margin: 0; padding: 0; list-style: none; }
+
+@media (min-width: 768px) {
+  .dt-desk { display: block; }
+  .dt-kartu { display: none; }
+}
+
+@media print {
+  .dt-desk { display: block !important; }
+  .dt-kartu { display: none !important; }
+}
+
+/* Card item mobile view */
+.dt-k {
+  padding: 1rem;
+  border-radius: 1rem;
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.05);
+  transition: all 0.15s ease-in-out;
+}
+.dt-k:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.07);
+}
+.dt-k-atas {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.dt-k-atas input[type="checkbox"] {
+  width: 1.25rem;
+  height: 1.25rem;
+  flex: none;
+  border-radius: 0.375rem;
+  border-color: #cbd5e1;
+}
+.dt-k-judul {
+  min-width: 0;
+  flex: 1;
+  font-weight: 700;
+  color: #0f172a;
+  overflow-wrap: anywhere;
+}
+.dt-k-rinci {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem 0.75rem;
+  margin: 0.75rem 0 0;
+  padding-top: 0.5rem;
+  border-top: 1px stroke #f1f5f9;
+}
+.dt-k-rinci dt {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #64748b;
+}
+.dt-k-rinci dd {
+  margin: 0;
+  min-width: 0;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #1e293b;
+  overflow-wrap: anywhere;
+}
+.dt-k-aksi {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #f1f5f9;
+}
+.dt-k-aksi [data-aksi] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.5rem;
+  min-height: 2.5rem;
+  border-radius: 0.5rem;
+}
+
+/* Modal Dialog & Bottom Sheet */
+dialog.dlg {
+  max-height: 90dvh;
+  overflow-y: auto;
+  border-radius: 1.25rem;
+  box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.25);
+}
+@keyframes dlg-naik {
+  from { transform: translateY(100%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+@media (max-width: 639px) {
+  dialog.dlg {
+    width: 100%;
+    max-width: 100%;
+    margin: auto 0 0;
+    border-radius: 1.5rem 1.5rem 0 0;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    animation: dlg-naik 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  dialog.dlg::before {
+    content: "";
+    display: block;
+    width: 3rem;
+    height: 0.25rem;
+    margin: 0.5rem auto 0.75rem;
+    border-radius: 9999px;
+    background: #cbd5e1;
+  }
+  .dlg-aksi {
+    flex-direction: column-reverse;
+    gap: 0.625rem;
+  }
+  .dlg-aksi > * {
+    width: 100%;
+    min-height: 2.875rem;
+  }
+  input:not([type="checkbox"]):not([type="radio"]):not([type="file"]), select, textarea {
+    font-size: 16px;
+    min-height: 2.875rem;
+  }
+  textarea {
+    min-height: 5rem;
+  }
+  .bar-simpan {
+    position: sticky;
+    bottom: 0;
+    z-index: 10;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(8px);
+    padding: 0.75rem 0 calc(0.75rem + env(safe-area-inset-bottom, 0px));
+  }
+  .bar-simpan > button {
+    flex: 1;
+    min-height: 2.875rem;
+  }
+  #toast-wadah {
+    top: calc(env(safe-area-inset-top, 0px) + 0.75rem);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  dialog.dlg { animation: none; }
+}
+
+/* Beranda & Card Summary Grid */
+.ringkas {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+.ringkas-k {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.375rem;
+  min-width: 0;
+  padding: 1.125rem;
+  border-radius: 1rem;
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.05);
+  transition: all 0.2s ease;
+}
+.ringkas-k:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px -2px rgba(15, 23, 42, 0.08);
+}
+.ringkas-k b {
+  overflow-wrap: anywhere;
+}
+.ringkas-l {
+  display: block;
+  font-size: 0.8125rem;
+  line-height: 1.3;
+}
+.ringkas-seksi {
+  padding: 1.25rem;
+}
+
+@media (min-width: 640px) {
+  .ringkas-k {
+    flex-direction: row;
+    align-items: center;
+    gap: 1rem;
+    padding: 1.25rem;
+  }
+  .ringkas-l { font-size: 0.875rem; }
+  .ringkas-seksi { padding: 1.5rem; }
+}
+@media (min-width: 1024px) {
+  .ringkas {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 1.25rem;
+  }
+}
+
+/* Form Filter Responsive Toggle */
+form[data-filter] .flt-toggle { display: none; }
+@media (max-width: 639px) {
+  form[data-filter] .flt-toggle { display: inline-flex; }
+  form[data-filter] .flt-cari { flex: 1 1 100%; min-width: 0; }
+  form[data-filter] .flt-lain { flex: 1 1 100%; }
+  form[data-filter] .flt-toggle,
+  form[data-filter] > button[type="submit"] {
+    flex: 1 1 0;
+    min-height: 2.75rem;
+  }
+  form[data-filter].flt-tutup .flt-lain { display: none; }
+}
+
+/* Detail Mutasi Custom Layout */
+@media (max-width: 639px) {
+  .mut-detail .mut-tabs {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0;
+    overflow: visible;
+  }
+  .mut-detail .mut-tabs [role="tab"] {
+    justify-content: center;
+    min-height: 2.75rem;
+    padding-inline: 0.25rem;
+    gap: 0.375rem;
+  }
+  .mut-aksi {
+    width: 100%;
+    flex-wrap: nowrap;
+  }
+  .mut-aksi > [data-aksi] { flex: 1 1 0; }
+  .mut-aksi > .mut-utama { flex: 2 1 0; }
+  .mut-aksi > details { flex: none; }
+  .mut-aksi > details > summary {
+    min-height: 2.75rem;
+    min-width: 2.75rem;
+  }
+  .mut-putusan-aksi > [data-aksi] { flex: 1; }
+  .mut-detail [data-aksi]:not([role="tab"]),
+  .mut-detail label[data-unggah] {
+    min-height: 2.75rem;
+    font-size: 0.875rem !important;
+  }
+}
