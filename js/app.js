@@ -4,6 +4,7 @@ import { bacaHalaman, pindah, saatBerubah, HALAMAN, TAHAP } from './router.js'
 import { esc, ikon, memuat, dialogKonfirmasi } from './ui.js'
 import { isiAvatar, muatFotoProfil, lupakanFoto } from './foto.js'
 import * as login from './halaman/login.js'
+import { mulaiNotifikasi, hentikanNotifikasi } from './notifikasi.js'
 
 const NAMA_SEKOLAH = ['SMP Negeri 1', 'Tapa']
 const JUDUL_APP = 'SIM Mutasi Siswa'
@@ -15,6 +16,7 @@ let urutan = 0
 function tampilLogin() {
   urutan++
   pengguna = null
+  hentikanNotifikasi()
   lupakanFoto()
   document.body.classList.remove('laci-buka')
   $('aplikasi').classList.add('hidden')
@@ -28,6 +30,7 @@ function masuk() {
   $('layar').innerHTML = ''
   $('aplikasi').classList.remove('hidden')
   bangunKerangka()
+  mulaiNotifikasi(pengguna)
   tampilHalaman()
 }
 
@@ -146,6 +149,11 @@ function pasangEvent() {
   $('scrim').addEventListener('click', () => bukaLaci(false))
   window.matchMedia('(min-width: 640px)').addEventListener('change', (e) => { if (e.matches) bukaLaci(false) })
 
+  $('notif-tombol').addEventListener('click', () => {
+    bukaAkun(false)
+    if (bacaHalaman() === 'persetujuan') tampilHalaman()
+    else pindah('persetujuan')
+  })
   $('akun-tombol').addEventListener('click', () => bukaAkun($('akun-panel').hidden))
   $('btn-profil').addEventListener('click', () => { bukaAkun(false); pindah('profil') })
   $('btn-keluar').addEventListener('click', () => { bukaAkun(false); keluar() })

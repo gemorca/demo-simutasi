@@ -515,6 +515,7 @@ export function renderDetail(wadah, { id, pemilik = '', tabAwal = 'data', hanyaB
     await jalankan(async () => {
       const hasil = await panggilApi('mutasiSetujui', { id: detail.mutasi.id, catatan })
       tampilPesan({ jenis: 'sukses', teks: 'Mutasi disetujui.' + (hasil.peringatan ? ' ' + hasil.peringatan : '') })
+      window.dispatchEvent(new Event('notif-segarkan'))
       catatan = ''
       await segarkan()
     })
@@ -549,6 +550,7 @@ export function renderDetail(wadah, { id, pemilik = '', tabAwal = 'data', hanyaB
     await jalankan(async () => {
       await panggilApi('mutasiTolak', { id: detail.mutasi.id, catatan })
       tampilPesan({ jenis: 'sukses', teks: 'Pengajuan ditolak' })
+      window.dispatchEvent(new Event('notif-segarkan'))
       catatan = ''
       await segarkan()
     })

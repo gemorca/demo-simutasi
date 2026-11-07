@@ -104,6 +104,12 @@
           
           <div id="judul" class="flex-1 truncate text-xl font-bold text-slate-900 tracking-tight"></div>
           
+          <!-- Lonceng notifikasi (khusus Kepala Sekolah) -->
+          <button type="button" id="notif-tombol" hidden aria-label="Notifikasi" class="notif-tombol relative grid h-10 w-10 shrink-0 place-items-center rounded-xl text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800">
+            <svg class="notif-bel h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+            <span id="notif-angka" hidden class="notif-angka absolute -right-0.5 -top-0.5 grid min-h-[1.25rem] min-w-[1.25rem] place-items-center rounded-full bg-rose-600 px-1 text-[0.6875rem] font-bold leading-none text-white ring-2 ring-white"></span>
+          </button>
+
           <!-- Top Account Profile Dropdown -->
           <div id="akun" class="relative">
             <button type="button" id="akun-tombol" aria-haspopup="true" aria-expanded="false" aria-controls="akun-panel" class="flex items-center gap-3 rounded-xl p-1.5 hover:bg-slate-100 transition-all border border-transparent hover:border-slate-200">
