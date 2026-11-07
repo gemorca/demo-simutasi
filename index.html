@@ -86,7 +86,7 @@
 
         <!-- User Profile Footer -->
         <div class="flex items-center gap-3 border-t border-slate-800 px-4 py-4 bg-slate-950/40">
-          <span id="samping-avatar" class="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 text-sm font-bold text-white shadow-md" aria-hidden="true"></span>
+          <span id="samping-avatar" class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-gradient-to-tr from-blue-600 to-indigo-500 text-sm font-bold text-white shadow-md" aria-hidden="true"></span>
           <div class="min-w-0 flex-1 leading-tight">
             <b id="samping-nama" class="block truncate text-sm font-semibold text-white"></b>
             <small id="samping-peran" class="block truncate text-xs text-slate-400"></small>
@@ -107,7 +107,7 @@
           <!-- Top Account Profile Dropdown -->
           <div id="akun" class="relative">
             <button type="button" id="akun-tombol" aria-haspopup="true" aria-expanded="false" aria-controls="akun-panel" class="flex items-center gap-3 rounded-xl p-1.5 hover:bg-slate-100 transition-all border border-transparent hover:border-slate-200">
-              <span id="akun-avatar" class="grid h-9 w-9 place-items-center rounded-lg bg-blue-600 text-xs font-bold text-white shadow-sm" aria-hidden="true"></span>
+              <span id="akun-avatar" class="grid h-9 w-9 place-items-center rounded-full bg-blue-600 text-xs font-bold text-white shadow-sm" aria-hidden="true"></span>
               <span class="hidden text-left leading-tight sm:block" aria-hidden="true">
                 <b id="akun-nama" class="block text-sm font-semibold text-slate-800"></b>
                 <small id="akun-peran" class="text-xs text-slate-500 font-medium"></small>
@@ -120,6 +120,10 @@
                 <strong id="panel-nama" class="block text-sm font-bold text-slate-900"></strong>
                 <span id="panel-peran" class="text-xs font-medium text-slate-500"></span>
               </div>
+              <button type="button" id="btn-profil" class="flex w-full items-center gap-2.5 rounded-xl px-4 py-2.5 text-left text-sm font-semibold text-slate-700 hover:bg-slate-100 transition-colors">
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 20v-1a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v1M12 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7"/></svg>
+                Profil Saya
+              </button>
               <button type="button" id="btn-keluar" class="flex w-full items-center gap-2.5 rounded-xl px-4 py-2.5 text-left text-sm font-semibold text-rose-600 hover:bg-rose-50 transition-colors">
                 <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
                 Keluar Sesi

@@ -1,4 +1,4 @@
-import { esc, KELAS } from './ui.js'
+import { esc, KELAS, tunda } from './ui.js'
 
 export function opsiKelas(kelas, nilai) {
   return '<option value="">Semua kelas</option>' + kelas.map((k) =>
@@ -7,7 +7,7 @@ export function opsiKelas(kelas, nilai) {
 
 const jumlahAktif = (filter) => ['kelas_id', 'status', 'dari', 'sampai'].filter((n) => filter[n]).length
 
-export function formFilterMutasi(filter, kelas, opsiStatus) {
+export function formFilterMutasi(filter, kelas, opsiStatus, denganTanggal = true) {
   const lab = 'grid gap-1.5 text-sm font-semibold text-slate-800'
   const lain = lab + ' flt-lain'
   const aktif = jumlahAktif(filter)
@@ -22,13 +22,13 @@ export function formFilterMutasi(filter, kelas, opsiStatus) {
     <label class="${lain}">Status Mutasi
       <select name="status" class="${isi}">${opsiStatus.map((o) =>
         `<option value="${esc(o.nilai)}"${o.nilai === filter.status ? ' selected' : ''}>${esc(o.label)}</option>`).join('')}</select></label>
-    <label class="${lain}">Dari Tanggal
+    ${denganTanggal ? `<label class="${lain}">Dari Tanggal
       <input name="dari" type="date" value="${esc(filter.dari)}" class="${isi}"></label>
     <label class="${lain}">Sampai Tanggal
-      <input name="sampai" type="date" value="${esc(filter.sampai)}" class="${isi}"></label>
-    <button type="submit" class="${KELAS.utama}">Terapkan Filter</button></form>`
+      <input name="sampai" type="date" value="${esc(filter.sampai)}" class="${isi}"></label>` : ''}</form>`
 }
 
+/* Filter berjalan otomatis (AJAX): teks dicari setelah berhenti mengetik, pilihan langsung diterapkan. */
 export function pasangFilter(form, filter, onCari) {
   const tandai = () => {
     const el = form.querySelector('[data-flt-jumlah]')
@@ -38,9 +38,18 @@ export function pasangFilter(form, filter, onCari) {
     el.hidden = n === 0
   }
   const baca = () => { for (const n of Object.keys(filter)) if (form.elements[n]) filter[n] = form.elements[n].value; tandai() }
-  form.addEventListener('input', baca)
-  form.addEventListener('change', baca)
-  form.addEventListener('submit', (e) => { e.preventDefault(); baca(); onCari() })
+  let terakhir = JSON.stringify(filter)
+  const terapkan = () => {
+    baca()
+    const tanda = JSON.stringify(filter)
+    if (tanda === terakhir) return
+    terakhir = tanda
+    onCari()
+  }
+  const tundaCari = tunda(terapkan, 400)
+  form.addEventListener('input', (e) => { baca(); if (e.target.name === 'q') tundaCari() })
+  form.addEventListener('change', terapkan)
+  form.addEventListener('submit', (e) => { e.preventDefault(); terapkan() })
   form.addEventListener('click', (e) => {
     const t = e.target.closest('[data-flt-toggle]')
     if (!t) return

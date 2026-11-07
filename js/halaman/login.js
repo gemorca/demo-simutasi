@@ -1,7 +1,9 @@
 import { panggilApi, simpanToken } from '../api.js'
-import { ikon } from '../ui.js'
+import { ikon, spinner } from '../ui.js'
 
 const IK_ORANG = 'M16 20v-1a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v1M12 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7'
+const IK_PERAN = 'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z'
+const IK_PANAH = 'M6 9l6 6 6-6'
 const IK_GEMBOK = 'M6 11h12v9H6zM8 11V8a4 4 0 0 1 8 0v3'
 const MATA_BUKA = '<svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>'
 const MATA_TUTUP = '<svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.52 13.52 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" y1="2" x2="22" y2="22"/></svg>'
@@ -33,6 +35,17 @@ export function render(wadah, onBerhasil) {
         </div>
         <form id="form-login" class="grid gap-4" novalidate>
           <label class="relative block">
+            <span class="sr-only">Masuk sebagai</span>
+            <span class="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">${ikon(IK_PERAN, 'h-5 w-5')}</span>
+            <select name="peran" class="${KELAS_INPUT} appearance-none pr-11">
+              <option value="">Pilih peran</option>
+              <option value="admin">Administrator Utama</option>
+              <option value="kepala_sekolah">Kepala Sekolah</option>
+              <option value="petugas_tu">Petugas TU</option>
+            </select>
+            <span class="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400">${ikon(IK_PANAH, 'h-5 w-5')}</span>
+          </label>
+          <label class="relative block">
             <span class="sr-only">Username</span>
             <span class="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">${ikon(IK_ORANG, 'h-5 w-5')}</span>
             <input name="username" class="${KELAS_INPUT}" autocomplete="username" placeholder="Masukkan username" autocapitalize="none" spellcheck="false">
@@ -44,12 +57,13 @@ export function render(wadah, onBerhasil) {
             <button type="button" id="lihat" aria-label="Tampilkan password" aria-pressed="false" class="absolute right-2 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-lg text-slate-400 hover:text-blue-600 hover:bg-slate-100 transition-colors">${MATA_BUKA}</button>
           </label>
           <p id="galat" role="alert" class="hidden rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700"></p>
-          <button type="submit" id="kirim" class="mt-2 min-h-[2.875rem] rounded-xl bg-blue-600 px-5 font-semibold text-white shadow-lg shadow-blue-500/25 hover:bg-blue-700 active:scale-[0.98] transition-all disabled:opacity-60">Masuk Aplikasi</button>
+          <button type="submit" id="kirim" class="mt-2 inline-flex min-h-[2.875rem] items-center justify-center gap-2.5 rounded-xl bg-blue-600 px-5 font-semibold text-white shadow-lg shadow-blue-500/25 hover:bg-blue-700 active:scale-[0.98] transition-all disabled:cursor-wait disabled:opacity-70">Masuk Aplikasi</button>
         </form>
       </div>
     </div>`
 
   const form = wadah.querySelector('#form-login')
+  const inPeran = form.elements.peran
   const inUser = form.elements.username
   const inPass = form.elements.password
   const tombolLihat = wadah.querySelector('#lihat')
@@ -72,19 +86,26 @@ export function render(wadah, onBerhasil) {
   form.addEventListener('submit', async (e) => {
     e.preventDefault()
     tampilGalat('')
+    if (!inPeran.value) {
+      tampilGalat('Pilih peran terlebih dahulu')
+      inPeran.focus()
+      return
+    }
     tombolKirim.disabled = true
-    tombolKirim.textContent = 'Memproses...'
+    tombolKirim.setAttribute('aria-busy', 'true')
+    tombolKirim.innerHTML = spinner('h-5 w-5') + '<span>Memproses...</span>'
     try {
-      const hasil = await panggilApi('login', { username: inUser.value, password: inPass.value })
+      const hasil = await panggilApi('login', { peran: inPeran.value, username: inUser.value, password: inPass.value })
       simpanToken(hasil.token)
       onBerhasil(hasil.pengguna)
     } catch (err) {
       tampilGalat(err.message)
     } finally {
       tombolKirim.disabled = false
+      tombolKirim.setAttribute('aria-busy', 'false')
       tombolKirim.textContent = 'Masuk Aplikasi'
     }
   })
 
-  inUser.focus()
+  inPeran.focus()
 }

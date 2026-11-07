@@ -18,16 +18,46 @@ export const KELAS = {
 }
 
 export const IKON = {
-  ubah: 'M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z',
-  kunci: 'M21 2l-2 2m-7.6 7.6a5.5 5.5 0 1 1-7.8 7.8 5.5 5.5 0 0 1 7.8-7.8ZM15.5 7.5l3 3L22 7l-3-3',
-  hapus: 'M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M10 11v6M14 11v6',
+  ubah: 'M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7M18.4 2.6a2.1 2.1 0 0 1 3 3L12.4 14.6l-4 1 1-4Z',
+  kunci: 'M2.6 17.4A2 2 0 0 0 2 18.8V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.2a2 2 0 0 0 1.4-.6l.8-.8a6.5 6.5 0 1 0-4-4ZM16.5 7.5h.01',
+  hapus: 'M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6',
   aktif: 'M18.4 6.6a9 9 0 1 1-12.8 0M12 2v10',
   pilih: 'M9 11l3 3 8-8M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h9',
+  salin: 'M9 9h10a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2v-9a2 2 0 0 1 2-2ZM5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1',
+  centang: 'M20 6 9 17l-5-5',
+  tutup: 'M18 6 6 18M6 6l12 12',
   info: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20ZM12 8v4M12 16h.01',
+}
+
+/* Spinner SVG (animasi SMIL, tidak butuh CSS). Warna ikut currentColor. */
+export function spinner(kelas = 'h-4 w-4') {
+  return `<svg class="${esc(kelas)} shrink-0" viewBox="0 0 24 24" fill="none" role="img" aria-label="Memproses"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-opacity=".25" stroke-width="3"/><path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" stroke-width="3" stroke-linecap="round"><animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="0.75s" repeatCount="indefinite"/></path></svg>`
 }
 
 export function ikon(d, kelas = 'h-[18px] w-[18px]') {
   return `<svg class="${esc(kelas)} shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${esc(d)}"/></svg>`
+}
+
+/* Tunda pemanggilan fn sampai pengguna berhenti mengetik (debounce). */
+export function tunda(fn, ms = 400) {
+  let t
+  return (...arg) => { clearTimeout(t); t = setTimeout(() => fn(...arg), ms) }
+}
+
+/* Redupkan area data saat filter memuat ulang, tanpa menghapus isi lama (tidak berkedip). */
+export function tandaiMemuat(el, aktif) {
+  if (!el) return
+  el.classList.toggle('opacity-60', aktif)
+  el.classList.toggle('pointer-events-none', aktif)
+  el.classList.add('transition-opacity')
+  if (aktif) el.setAttribute('aria-busy', 'true')
+  else el.removeAttribute('aria-busy')
+}
+
+/* Jenis kelamin ditulis lengkap (data tersimpan sebagai L/P). */
+export function namaJenisKelamin(v) {
+  const k = String(v || '').trim().toUpperCase()
+  return k === 'L' ? 'Laki-laki' : k === 'P' ? 'Perempuan' : (k || '-')
 }
 
 export function inisial(nama) {
@@ -131,6 +161,53 @@ export function dialogInfo({ jenis = 'galat', judul, teks, tombol = 'Tutup' }) {
   return bukaModal(d)
 }
 
+async function salinTeks(teks) {
+  try {
+    await navigator.clipboard.writeText(teks)
+    return true
+  } catch {
+    const t = document.createElement('textarea')
+    t.value = teks
+    t.setAttribute('readonly', '')
+    t.style.cssText = 'position:fixed;top:-100px;opacity:0'
+    document.body.appendChild(t)
+    t.select()
+    let ok = false
+    try { ok = document.execCommand('copy') } catch { ok = false }
+    t.remove()
+    return ok
+  }
+}
+
+export function dialogPasswordBaru({ username, password, judul = 'Password Baru Berhasil Dibuat' }) {
+  const d = buatDialog(`<form method="dialog" class="border-t-4 border-t-emerald-600 p-6">
+    <h2 class="text-xl font-bold tracking-tight text-slate-900">${esc(judul)}</h2>
+    <p class="mt-2 text-sm leading-relaxed text-slate-600">Password baru untuk <strong class="text-slate-900">${esc(username)}</strong>:</p>
+    <div class="mt-4 flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 p-2 pl-4">
+      <strong data-sandi class="min-w-0 flex-1 select-all break-all font-mono text-lg font-extrabold tracking-wide text-slate-900">${esc(password)}</strong>
+      <button type="button" data-salin class="${KELAS.tombol} ${KELAS.kecil}">${ikon(IKON.salin, 'h-4 w-4')}<span>Salin</span></button>
+    </div>
+    <p role="status" data-info-salin class="mt-2 min-h-[1rem] text-xs font-semibold text-emerald-700"></p>
+    <p class="mt-1 text-xs font-semibold text-amber-700">Catat sekarang, password tidak akan ditampilkan lagi.</p>
+    <div class="dlg-aksi mt-6 flex justify-end"><button value="ok" autofocus class="${KELAS.utama}">Sudah saya catat</button></div></form>`)
+  const tombol = d.querySelector('[data-salin]')
+  const info = d.querySelector('[data-info-salin]')
+  let timer
+  tombol.addEventListener('click', async () => {
+    const ok = await salinTeks(password)
+    tombol.innerHTML = ok ? ikon(IKON.centang, 'h-4 w-4') + '<span>Tersalin</span>' : ikon(IKON.salin, 'h-4 w-4') + '<span>Salin</span>'
+    info.className = 'mt-2 min-h-[1rem] text-xs font-semibold ' + (ok ? 'text-emerald-700' : 'text-rose-600')
+    info.textContent = ok ? 'Password disalin ke papan klip.' : 'Gagal menyalin. Blok password lalu salin manual.'
+    clearTimeout(timer)
+    timer = setTimeout(() => {
+      if (!d.isConnected) return
+      tombol.innerHTML = ikon(IKON.salin, 'h-4 w-4') + '<span>Salin</span>'
+      info.textContent = ''
+    }, 2500)
+  })
+  return bukaModal(d)
+}
+
 export function toast(teks, jenis = 'sukses') {
   let wadah = document.getElementById('toast-wadah')
   if (!wadah) {
@@ -141,11 +218,17 @@ export function toast(teks, jenis = 'sukses') {
     wadah.className = 'fixed right-4 top-4 z-[60] flex w-[min(92vw,24rem)] flex-col gap-2.5'
     document.body.appendChild(wadah)
   }
+  const galat = jenis === 'galat'
   const t = document.createElement('div')
-  t.className = 'rounded-xl border border-slate-200 bg-white p-4 shadow-xl text-sm font-semibold transition-all border-l-4 ' + (jenis === 'galat' ? 'border-l-rose-600 text-slate-800' : 'border-l-emerald-600 text-slate-800')
-  t.textContent = teks
+  t.className = 'flex items-start gap-3 rounded-xl border border-slate-200 border-l-4 bg-white p-4 text-sm shadow-xl transition-all '
+    + (galat ? 'border-l-rose-600' : 'border-l-emerald-600')
+  t.innerHTML = `<span class="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full ${galat ? 'bg-rose-100 text-rose-600' : 'bg-emerald-100 text-emerald-600'}">${ikon(galat ? IKON.info : IKON.centang, 'h-4 w-4')}</span>
+    <div class="min-w-0 flex-1"><strong class="block font-bold text-slate-900">${galat ? 'Perhatian' : 'Berhasil'}</strong><span data-teks class="block break-words font-medium text-slate-600"></span></div>
+    <button type="button" aria-label="Tutup" class="grid h-6 w-6 shrink-0 place-items-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700">${ikon(IKON.tutup, 'h-4 w-4')}</button>`
+  t.querySelector('[data-teks]').textContent = teks
   let timer
-  const mulai = () => { timer = setTimeout(() => t.remove(), 3500) }
+  const mulai = () => { timer = setTimeout(() => t.remove(), 4500) }
+  t.querySelector('button').addEventListener('click', () => { clearTimeout(timer); t.remove() })
   t.addEventListener('mouseenter', () => clearTimeout(timer))
   t.addEventListener('mouseleave', mulai)
   wadah.appendChild(t)
@@ -250,7 +333,11 @@ export function barSimpan({ teks = 'Simpan' } = {}) {
 export function sibukSimpan(form, sibuk, teks = 'Simpan') {
   const simpan = form.querySelector('[data-simpan]')
   const batal = form.querySelector('[data-batal]')
-  if (simpan) { simpan.disabled = sibuk; simpan.textContent = sibuk ? 'Menyimpan...' : teks }
+  if (simpan) {
+    simpan.disabled = sibuk
+    simpan.setAttribute('aria-busy', String(sibuk))
+    simpan.innerHTML = sibuk ? spinner() + '<span>Menyimpan...</span>' : esc(teks)
+  }
   if (batal) batal.disabled = sibuk
 }
 
@@ -260,30 +347,41 @@ export function galatMuat(teks) {
     <button type="button" data-aksi="muat-ulang" class="${KELAS.tombol} mt-3">Coba lagi</button></div>`
 }
 
-export function aksiIkon({ aksi, id = '', label, d, bahaya = false, nonaktif = false }) {
+const NADA_AKSI = {
+  biru: 'hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200',
+  amber: 'hover:bg-amber-50 hover:text-amber-600 hover:border-amber-200',
+  bahaya: 'hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200',
+}
+export function aksiIkon({ aksi, id = '', label, d, bahaya = false, nonaktif = false, nada = '' }) {
+  const warna = NADA_AKSI[bahaya ? 'bahaya' : nada] || 'hover:bg-slate-100 hover:text-slate-900'
   return `<button type="button" data-aksi="${esc(aksi)}" data-id="${esc(id)}" title="${esc(label)}" aria-label="${esc(label)}"${nonaktif ? ' disabled' : ''}
-    class="rounded-xl border border-slate-200 bg-white p-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors disabled:opacity-40 ${bahaya ? 'hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200' : ''}">${ikon(d, 'h-4 w-4')}</button>`
+    class="inline-grid h-9 w-9 place-items-center rounded-xl border border-slate-200 bg-white text-slate-500 shadow-sm transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white disabled:hover:text-slate-500 disabled:hover:border-slate-200 ${warna}">${ikon(d, 'h-[18px] w-[18px]')}</button>`
 }
 
-const SEL = 'border-b border-slate-200/80 px-4 py-3.5'
-const RATA = { tengah: ' text-center', angka: ' text-right tabular-nums' }
+// Garis tegak antar kolom: header lebih tegas supaya batas kolom jelas.
+const SEL = 'border-b border-r border-slate-200 last:border-r-0 px-4 py-3.5'
+const SELH = 'border-b border-r border-slate-300 last:border-r-0 px-4 py-3.5'
+// Header selalu rata tengah. Isi kolom rata tengah, kecuali kolom dengan isi: 'kiri'.
+// Semua kolom (judul dan isi) rata tengah. Kolom 'angka' tetap memakai angka sejajar.
+const RATA = { tengah: ' text-center', angka: ' text-center tabular-nums' }
+const TENGAH = ' text-center'
 
 export function tabel({ kolom, baris, idKey = 'id', aksi = null, pilih = null, kosong = null, kartu = true }) {
   if (!baris.length && kosong) return statusKosong(kosong)
   const adaPilih = Boolean(pilih && pilih.aktif)
   const kepala = [
-    adaPilih ? `<th class="${SEL} w-10"><input type="checkbox" data-pilih-semua aria-label="Pilih semua"${pilih.semua ? ' checked' : ''}${pilih.sebagian ? ' data-sebagian' : ''}${baris.length ? '' : ' disabled'} class="rounded border-slate-300"></th>` : '',
-    ...kolom.map((k) => `<th scope="col" class="${SEL} font-bold text-slate-700 uppercase tracking-wider text-xs${RATA[k.rata] || ''}">${esc(k.judul)}</th>`),
-    aksi ? `<th scope="col" class="${SEL} text-center font-bold text-slate-700 uppercase tracking-wider text-xs">Aksi</th>` : '',
+    adaPilih ? `<th class="${SELH} w-10 text-center"><input type="checkbox" data-pilih-semua aria-label="Pilih semua"${pilih.semua ? ' checked' : ''}${pilih.sebagian ? ' data-sebagian' : ''}${baris.length ? '' : ' disabled'} class="rounded border-slate-300"></th>` : '',
+    ...kolom.map((k) => `<th scope="col" class="${SELH} font-bold text-slate-700 uppercase tracking-wider text-xs${RATA[k.rata] || TENGAH}">${esc(k.judul)}</th>`),
+    aksi ? `<th scope="col" class="${SELH} text-center font-bold text-slate-700 uppercase tracking-wider text-xs">Aksi</th>` : '',
   ].join('')
   const nilaiSel = (k, b) => (k.html ? k.html(b) : esc(k.nilai ? k.nilai(b) : ''))
   const centang = (b, id, dipilih) => `<input type="checkbox" data-pilih="${esc(id)}" aria-label="${esc(pilih.label ? pilih.label(b) : 'Pilih baris')}"${dipilih ? ' checked' : ''}${pilih.nonaktif && pilih.nonaktif(b) ? ' disabled' : ''} class="rounded border-slate-300">`
   const isi = baris.map((b) => {
     const id = b[idKey]
     const dipilih = adaPilih && pilih.ada(id)
-    const sel = kolom.map((k) => `<td class="${SEL} text-slate-700 font-medium${RATA[k.rata] || ''}">${nilaiSel(k, b)}</td>`).join('')
+    const sel = kolom.map((k) => `<td class="${SEL} text-slate-700 font-medium align-middle${k.isi === 'kiri' ? ' text-left' : (RATA[k.rata] || TENGAH)}">${nilaiSel(k, b)}</td>`).join('')
     return `<tr class="transition-colors ${dipilih ? 'bg-blue-50/70' : 'hover:bg-slate-50/70'}">
-      ${adaPilih ? `<td class="${SEL} w-10">${centang(b, id, dipilih)}</td>` : ''}
+      ${adaPilih ? `<td class="${SEL} w-10 text-center">${centang(b, id, dipilih)}</td>` : ''}
       ${sel}
       ${aksi ? `<td class="${SEL}"><div class="flex justify-center gap-1.5">${aksi(b).map((a) => aksiIkon({ ...a, id })).join('')}</div></td>` : ''}</tr>`
   }).join('')
@@ -387,7 +485,7 @@ export function barAksiBawah({ pilihan, satuan, sibuk = false }) {
   if (!pilihan.aktif) return ''
   return `<div role="region" aria-label="Aksi untuk ${esc(satuan)} terpilih" class="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
     <span aria-live="polite" class="text-sm font-semibold text-slate-700"><strong>${pilihan.jumlah}</strong> ${esc(satuan)} dipilih</span>
-    <button type="button" data-aksi="hapus-terpilih" class="${KELAS.bahaya}"${sibuk || pilihan.jumlah === 0 ? ' disabled' : ''}>${sibuk ? 'Menghapus...' : 'Hapus terpilih'}</button></div>`
+    <button type="button" data-aksi="hapus-terpilih" class="${KELAS.bahaya}"${sibuk || pilihan.jumlah === 0 ? ' disabled' : ''}>${sibuk ? spinner() + '<span>Menghapus...</span>' : 'Hapus terpilih'}</button></div>`
 }
 
 export function ringkasanMassal(hasil, satuan) {

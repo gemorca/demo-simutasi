@@ -2,9 +2,10 @@ import { panggilApi } from '../api.js'
 import {
   esc, KELAS, IKON, memuat, judulHalaman, medan, tandaiGalat, bersihkanGalat, bacaForm, barSimpan, sibukSimpan,
   galatMuat, tabel, lencana, isiUlang, pasangAksi, pilihanMassal, barAlat, barAksiBawah, ringkasanMassal,
-  dialogKonfirmasi, tampilPesan, notif,
+  dialogKonfirmasi, tampilPesan, notif, tunda, tandaiMemuat, namaJenisKelamin,
 } from '../ui.js'
 import { periksa, wajib } from '../validasi.js'
+import { bukaImporSiswa } from '../imporSiswa.js'
 
 const IK_ORANG = 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8'
 const SATUAN = 'siswa'
@@ -16,7 +17,10 @@ const ATURAN = {
 }
 
 export function render(wadah, pengguna) {
-  const hanyaBaca = pengguna.peran !== 'admin'
+  const admin = pengguna.peran === 'admin'
+  const bisaTambah = admin || pengguna.peran === 'petugas_tu'
+  // Ubah, hapus, dan pilih massal hanya untuk Administrator. Petugas TU: tambah dan impor saja.
+  const hanyaBaca = !admin
   let hasil = { total: 0, dipotong: false, daftar: [] }
   let kelas = []
   let filter = { q: '', kelas_id: '' }
@@ -30,8 +34,12 @@ export function render(wadah, pengguna) {
 
   const judul = (dengan) => judulHalaman({
     judul: 'Data Siswa Aktif',
-    sub: hanyaBaca ? 'Daftar seluruh siswa aktif (mode lihat).' : 'Kelola data siswa aktif sekolah.',
-    aksi: dengan && !hanyaBaca ? `<button type="button" data-aksi="tambah" class="${KELAS.utama}">+ Tambah Siswa</button>` : '',
+    sub: admin
+      ? 'Kelola data siswa aktif sekolah.'
+      : bisaTambah ? 'Tambah atau impor siswa baru. Ubah dan hapus data khusus Administrator.' : 'Daftar seluruh siswa aktif (mode lihat).',
+    aksi: dengan && bisaTambah
+      ? `<button type="button" data-aksi="impor" class="${KELAS.tombol}">Impor Excel/CSV</button><button type="button" data-aksi="tambah" class="${KELAS.utama}">+ Tambah Siswa</button>`
+      : '',
   })
 
   function formFilter() {
@@ -41,8 +49,7 @@ export function render(wadah, pengguna) {
       <label class="grid min-w-[12rem] flex-1 gap-1.5 text-sm font-semibold text-slate-800">Cari siswa
         <input name="q" value="${esc(filter.q)}" placeholder="Nama atau NISN/NIS" autocomplete="off" class="${KELAS.input} font-normal"></label>
       <label class="grid gap-1.5 text-sm font-semibold text-slate-800">Filter Kelas
-        <select name="kelas_id" class="${KELAS.kontrol} font-normal"><option value="">Semua kelas</option>${opsi}</select></label>
-      <button type="submit" class="${KELAS.utama}">Cari Siswa</button></form>`
+        <select name="kelas_id" class="${KELAS.kontrol} font-normal"><option value="">Semua kelas</option>${opsi}</select></label></form>`
   }
 
   function gambarIsi() {
@@ -55,8 +62,8 @@ export function render(wadah, pengguna) {
       + tabel({
         kolom: [
           { judul: 'NISN/NIS', nilai: (s) => s.nisn_nis || '-' },
-          { judul: 'Nama Lengkap', html: (s) => `<strong class="text-slate-900 font-bold">${esc(s.nama)}</strong>` },
-          { judul: 'JK', rata: 'tengah', nilai: (s) => s.jenis_kelamin },
+          { judul: 'Nama Lengkap', isi: 'kiri', html: (s) => `<strong class="text-slate-900 font-bold">${esc(s.nama)}</strong>` },
+          { judul: 'Jenis Kelamin', rata: 'tengah', nilai: (s) => namaJenisKelamin(s.jenis_kelamin) },
           { judul: 'Kelas', nilai: (s) => s.nama_kelas },
           { judul: 'Status', rata: 'tengah', html: (s) => lencana(s.status) },
         ],
@@ -74,9 +81,9 @@ export function render(wadah, pengguna) {
         },
         kosong: {
           ikon: IK_ORANG, judul: 'Tidak ada siswa ditemukan',
-          teks: hanyaBaca
-            ? 'Ubah kata kunci atau pilih kelas lain.'
-            : 'Ubah kata kunci atau pilih kelas lain. Siswa baru bisa ditambah lewat tombol Tambah Siswa.',
+          teks: bisaTambah
+            ? 'Ubah kata kunci atau pilih kelas lain. Siswa baru bisa ditambah lewat tombol Tambah Siswa atau Impor Excel/CSV.'
+            : 'Ubah kata kunci atau pilih kelas lain.',
         },
       })
       + (hanyaBaca ? '' : barAksiBawah({ pilihan, satuan: SATUAN, sibuk })))
@@ -92,11 +99,12 @@ export function render(wadah, pengguna) {
     pilihan.setDaftar(hasil.daftar.map(idStr))
   }
 
-  async function muatIsi(semua = false) {
+  async function muatIsi(semua = false, senyap = false) {
     const id = layar
     const saya = ++urutanCari
     const isi = wadah.querySelector('[data-isi]')
-    isi.innerHTML = memuat()
+    if (senyap && isi.firstElementChild) tandaiMemuat(isi, true)
+    else isi.innerHTML = memuat()
     try {
       await ambil(semua)
       if (id !== layar || saya !== urutanCari || !wadah.isConnected) return
@@ -104,6 +112,8 @@ export function render(wadah, pengguna) {
     } catch (err) {
       if (id !== layar || saya !== urutanCari || !wadah.isConnected) return
       isi.innerHTML = galatMuat(err.message)
+    } finally {
+      if (saya === urutanCari) tandaiMemuat(isi, false)
     }
   }
 
@@ -129,9 +139,20 @@ export function render(wadah, pengguna) {
     wadah.innerHTML = judul(true) + formFilter() + '<div data-isi></div>'
     const form = wadah.querySelector('[data-filter]')
     const baca = () => { filter = { q: form.elements.q.value, kelas_id: form.elements.kelas_id.value } }
-    form.addEventListener('input', baca)
-    form.addEventListener('change', baca)
-    form.addEventListener('submit', (e) => { e.preventDefault(); baca(); pilihan.selesai(); muatIsi(false) })
+    // Pencarian otomatis (AJAX): teks setelah berhenti mengetik, pilihan kelas langsung.
+    let terakhir = JSON.stringify(filter)
+    const terapkan = () => {
+      baca()
+      const tanda = JSON.stringify(filter)
+      if (tanda === terakhir) return
+      terakhir = tanda
+      pilihan.selesai()
+      muatIsi(false, true)
+    }
+    const tundaCari = tunda(terapkan, 400)
+    form.addEventListener('input', (e) => { baca(); if (e.target.name === 'q') tundaCari() })
+    form.addEventListener('change', terapkan)
+    form.addEventListener('submit', (e) => { e.preventDefault(); terapkan() })
     gambarIsi()
   }
 
@@ -179,6 +200,10 @@ export function render(wadah, pengguna) {
 
   const PETA_DAFTAR = {
     tambah: () => tampilForm(null),
+    impor: () => {
+      if (!bisaTambah) return
+      bukaImporSiswa({ onSelesai: () => { if (wadah.isConnected) tampilDaftar(true) } })
+    },
     ubah: (id) => { const s = cari(id); if (s) tampilForm(s) },
     hapus: (id) => hapus(cari(id)),
     'mulai-pilih': () => { pilihan.mulai(); gambarIsi() },
@@ -190,7 +215,7 @@ export function render(wadah, pengguna) {
   }
 
   function tampilForm(s) {
-    if (hanyaBaca) return
+    if (!bisaTambah || (s && !admin)) return
     const id = ++layar
     const ubah = Boolean(s)
     const n = ubah
@@ -234,8 +259,8 @@ export function render(wadah, pengguna) {
       sibukSimpan(form, true)
       try {
         await panggilApi('siswaSimpan', { id: ubah ? s.id : '', ...isian })
+        tampilPesan({ jenis: 'sukses', teks: ubah ? 'Data siswa berhasil diperbarui' : 'Siswa baru berhasil ditambahkan' })
         if (id !== layar || !wadah.isConnected) return
-        tampilPesan({ jenis: 'sukses', teks: 'Data siswa berhasil disimpan' })
         tampilDaftar(true)
       } catch (err) {
         if (id !== layar || !wadah.isConnected) return

@@ -1,8 +1,8 @@
 import { panggilApi } from '../api.js'
-import { esc, KELAS, IKON, memuat, judulHalaman, lencana, tabel, galatMuat, pasangAksi } from '../ui.js'
+import { esc, KELAS, IKON, memuat, judulHalaman, lencana, tabel, galatMuat, pasangAksi, tandaiMemuat } from '../ui.js'
 import { formFilterMutasi, pasangFilter, opsiKelas } from '../mutasiFilter.js'
 import { renderForm } from '../mutasiForm.js'
-import { renderDetail } from '../mutasiDetail.js'
+import { renderDetail, pulihkanTerbuka, hapusTerbuka } from '../mutasiDetail.js'
 
 const OPSI_STATUS = [
   { nilai: '', label: 'Semua status' },
@@ -12,11 +12,15 @@ const OPSI_STATUS = [
   { nilai: 'Ditolak', label: 'Ditolak' },
 ]
 
-export function render(wadah) {
+export function render(wadah, pengguna) {
+  const peran = pengguna.peran
+  const admin = peran === 'admin'
+  const bisaTulis = admin || peran === 'petugas_tu'
   const filter = { q: '', status: '', kelas_id: '', dari: '', sampai: '' }
   let kelas = []
   let kelasAda = false
   let urutan = 0
+  const PEMILIK = 'siswaMasuk:' + pengguna.id
 
   function bukaForm(id) {
     renderForm(wadah, {
@@ -26,11 +30,15 @@ export function render(wadah) {
     window.scrollTo(0, 0)
   }
 
-  function bukaDetail(id) {
+  function bukaDetail(id, tabAwal = 'data') {
     renderDetail(wadah, {
       id,
-      hanyaBaca: false,
-      bisaBatalkan: true,
+      pemilik: PEMILIK,
+      tabAwal,
+      hanyaBaca: !bisaTulis,
+      bisaBatalkan: admin,
+      bisaHapusMutasi: admin,
+      bisaUbahNomor: bisaTulis,
       onKembali: tampilDaftar,
       onUbah: () => bukaForm(id),
     })
@@ -41,10 +49,10 @@ export function render(wadah) {
     akar.querySelector('[data-isi]').innerHTML = `<p class="mb-3 text-sm font-semibold text-slate-500">Total Data: <strong class="text-slate-900">${esc(hasil.total)}</strong>${hasil.dipotong ? ' (ditampilkan 300 pertama)' : ''}</p>`
       + tabel({
         kolom: [
-          { judul: 'Nama Siswa', html: (m) => `<strong class="text-slate-900 font-bold">${esc(m.nama_siswa)}</strong>` },
+          { judul: 'Nama Siswa', isi: 'kiri', html: (m) => `<strong class="text-slate-900 font-bold">${esc(m.nama_siswa)}</strong>` },
           { judul: 'Kelas', nilai: (m) => m.nama_kelas },
           { judul: 'Tanggal Masuk', nilai: (m) => m.tanggal },
-          { judul: 'Sekolah Asal', nilai: (m) => m.sekolah },
+          { judul: 'Sekolah Asal', isi: 'kiri', nilai: (m) => m.sekolah },
           { judul: 'Lampiran', rata: 'angka', nilai: (m) => m.jumlah_lampiran },
           { judul: 'Status', di: 'tanda', html: (m) => lencana(m.status) },
           { judul: 'Aksi', rata: 'tengah', di: 'aksi', html: (m) => `<button type="button" data-aksi="buka" data-id="${esc(m.id)}" class="${KELAS.tombol} ${KELAS.kecil}">Buka Detail</button>` },
@@ -54,10 +62,11 @@ export function render(wadah) {
       })
   }
 
-  async function muatIsi(akar) {
+  async function muatIsi(akar, senyap = false) {
     const saya = ++urutan
     const isi = akar.querySelector('[data-isi]')
-    isi.innerHTML = memuat()
+    if (senyap && isi.firstElementChild) tandaiMemuat(isi, true)
+    else isi.innerHTML = memuat()
     try {
       const hasil = await panggilApi('mutasiDaftar', filter)
       if (saya !== urutan || !akar.isConnected) return
@@ -65,24 +74,29 @@ export function render(wadah) {
     } catch (err) {
       if (saya !== urutan || !akar.isConnected) return
       isi.innerHTML = galatMuat(err.message)
+    } finally {
+      if (saya === urutan) tandaiMemuat(isi, false)
     }
   }
 
   function tampilDaftar() {
+    hapusTerbuka()
     const akar = document.createElement('div')
     wadah.innerHTML = ''
     wadah.appendChild(akar)
     akar.innerHTML = judulHalaman({
       judul: 'Data Siswa Masuk',
-      sub: 'Catat siswa pindahan, lengkapi dokumen, lalu ajukan ke Kepala Sekolah.',
-      aksi: `<button type="button" data-aksi="tambah" class="${KELAS.utama}">+ Tambah Siswa Masuk</button>`,
+      sub: bisaTulis
+        ? 'Catat siswa pindahan, lengkapi dokumen, lalu ajukan ke Kepala Sekolah.'
+        : 'Pantau data siswa masuk. Keputusan persetujuan ada di menu Persetujuan.',
+      aksi: bisaTulis ? `<button type="button" data-aksi="tambah" class="${KELAS.utama}">+ Tambah Siswa Masuk</button>` : '',
     }) + formFilterMutasi(filter, kelas, OPSI_STATUS) + '<div data-isi></div>'
     pasangAksi(akar, {
-      tambah: () => bukaForm(''),
+      tambah: () => { if (bisaTulis) bukaForm('') },
       buka: (id) => bukaDetail(id),
       'muat-ulang': () => muatIsi(akar),
     })
-    pasangFilter(akar.querySelector('[data-filter]'), filter, () => muatIsi(akar))
+    pasangFilter(akar.querySelector('[data-filter]'), filter, () => muatIsi(akar, true))
     muatIsi(akar)
 
     if (!kelasAda) {
@@ -96,5 +110,8 @@ export function render(wadah) {
     window.scrollTo(0, 0)
   }
 
-  tampilDaftar()
+  // Setelah halaman di-refresh, buka lagi detail yang tadi sedang dibuka (lampiran tetap ada di server).
+  const tersimpan = pulihkanTerbuka(PEMILIK)
+  if (tersimpan) bukaDetail(tersimpan.id, tersimpan.tab)
+  else tampilDaftar()
 }

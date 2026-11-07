@@ -1,5 +1,5 @@
 import { panggilApi } from '../api.js'
-import { esc, KELAS, memuat, statusKosong, tabel, galatMuat, pasangAksi, notif } from '../ui.js'
+import { esc, KELAS, memuat, statusKosong, tabel, galatMuat, pasangAksi, notif, namaJenisKelamin } from '../ui.js'
 import { parameterPeriode, pengendaliPeriode } from '../periode.js'
 import { persen } from '../util.js'
 import { unduhExcel } from '../excel.js'
@@ -50,7 +50,7 @@ function barisExcel(lap) {
         ['No', 'Nama siswa', 'NISN/NIS', 'JK', 'Kelas', 'Tanggal masuk', 'Sekolah asal', 'Alasan', 'Disetujui oleh', 'Tanggal persetujuan'],
         ...lap.daftar.map((m) => [
           m.no, m.nama_siswa, m.nisn_nis, m.jenis_kelamin, m.nama_kelas,
-          m.tanggal, m.sekolah, m.alasan, m.disetujui_oleh, m.tanggal_persetujuan,
+          m.tanggal, m.sekolah, m.alasan, m.disetujui_oleh ? 'Kepala Sekolah' : '', m.tanggal_persetujuan,
         ]),
       ],
     },
@@ -91,13 +91,13 @@ function tabelDaftar(lap) {
     },
     kolom: [
       { judul: 'No', rata: 'tengah', nilai: (m) => m.no },
-      { judul: 'Nama siswa', html: (m) => `<b class="font-bold text-slate-900">${esc(m.nama_siswa)}</b>` },
+      { judul: 'Nama siswa', isi: 'kiri', html: (m) => `<b class="font-bold text-slate-900">${esc(m.nama_siswa)}</b>` },
       { judul: 'NISN/NIS', rata: 'tengah', nilai: (m) => atauStrip(m.nisn_nis) },
-      { judul: 'JK', rata: 'tengah', nilai: (m) => m.jenis_kelamin },
+      { judul: 'Jenis Kelamin', rata: 'tengah', nilai: (m) => namaJenisKelamin(m.jenis_kelamin) },
       { judul: 'Kelas', rata: 'tengah', nilai: (m) => m.nama_kelas },
       { judul: 'Tanggal masuk', rata: 'tengah', nilai: (m) => tanggalIndonesia(m.tanggal) },
-      { judul: 'Sekolah asal', nilai: (m) => atauStrip(m.sekolah) },
-      { judul: 'Alasan', nilai: (m) => atauStrip(m.alasan) },
+      { judul: 'Sekolah asal', isi: 'kiri', nilai: (m) => atauStrip(m.sekolah) },
+      { judul: 'Alasan', isi: 'kiri', nilai: (m) => atauStrip(m.alasan) },
     ],
   })
 }

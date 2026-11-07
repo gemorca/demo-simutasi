@@ -1,22 +1,25 @@
 import { panggilApi } from '../api.js'
-import { esc, KELAS, IKON, memuat, judulHalaman, lencana, tabel, galatMuat, pasangAksi } from '../ui.js'
+import { esc, KELAS, IKON, memuat, judulHalaman, lencana, tabel, galatMuat, pasangAksi, tandaiMemuat } from '../ui.js'
 import { formFilterMutasi, pasangFilter, opsiKelas } from '../mutasiFilter.js'
-import { renderDetail } from '../mutasiDetail.js'
+import { renderDetail, pulihkanTerbuka, hapusTerbuka } from '../mutasiDetail.js'
 
 const OPSI_STATUS = [
+  { nilai: '', label: 'Semua status' },
   { nilai: 'Diajukan', label: 'Menunggu persetujuan' },
   { nilai: 'Disetujui', label: 'Disetujui' },
   { nilai: 'Ditolak', label: 'Ditolak' },
 ]
 
-export function render(wadah) {
-  const filter = { q: '', status: 'Diajukan', kelas_id: '', dari: '', sampai: '' }
+export function render(wadah, pengguna) {
+  const kepsek = pengguna.peran === 'kepala_sekolah'
+  const filter = { q: '', status: 'Diajukan', kelas_id: '' }
   let kelas = []
   let kelasAda = false
   let urutan = 0
+  const PEMILIK = 'persetujuan:' + pengguna.id
 
-  function buka(id) {
-    renderDetail(wadah, { id, hanyaBaca: true, bisaPutuskan: true, onKembali: tampilDaftar })
+  function buka(id, tabAwal = 'data') {
+    renderDetail(wadah, { id, pemilik: PEMILIK, tabAwal, hanyaBaca: true, bisaPutuskan: kepsek, onKembali: tampilDaftar })
     window.scrollTo(0, 0)
   }
 
@@ -30,17 +33,18 @@ export function render(wadah) {
           { judul: 'Sekolah Asal', nilai: (m) => m.sekolah },
           { judul: 'Diajukan Oleh', nilai: (m) => m.diajukan_oleh || '-' },
           { judul: 'Status', di: 'tanda', html: (m) => lencana(m.status) },
-          { judul: 'Aksi', rata: 'tengah', di: 'aksi', html: (m) => `<button type="button" data-aksi="buka" data-id="${esc(m.id)}" class="${KELAS.utama} ${KELAS.kecil}">Tinjau Pengajuan</button>` },
+          { judul: 'Aksi', rata: 'tengah', di: 'aksi', html: (m) => `<button type="button" data-aksi="buka" data-id="${esc(m.id)}" class="${KELAS.utama} ${KELAS.kecil}">${kepsek ? 'Tinjau Pengajuan' : 'Buka Detail'}</button>` },
         ],
         baris: hasil.daftar,
         kosong: { ikon: IKON.info, judul: 'Tidak ada pengajuan persetujuan' },
       })
   }
 
-  async function muatIsi(akar) {
+  async function muatIsi(akar, senyap = false) {
     const saya = ++urutan
     const isi = akar.querySelector('[data-isi]')
-    isi.innerHTML = memuat()
+    if (senyap && isi.firstElementChild) tandaiMemuat(isi, true)
+    else isi.innerHTML = memuat()
     try {
       const hasil = await panggilApi('mutasiDaftar', filter)
       if (saya !== urutan || !akar.isConnected) return
@@ -48,17 +52,20 @@ export function render(wadah) {
     } catch (err) {
       if (saya !== urutan || !akar.isConnected) return
       isi.innerHTML = galatMuat(err.message)
+    } finally {
+      if (saya === urutan) tandaiMemuat(isi, false)
     }
   }
 
   function tampilDaftar() {
+    hapusTerbuka()
     const akar = document.createElement('div')
     wadah.innerHTML = ''
     wadah.appendChild(akar)
     akar.innerHTML = judulHalaman({ judul: 'Persetujuan Siswa Masuk', sub: 'Tinjau berkas pengajuan mutasi siswa, lalu setujui atau tolak.' })
-      + formFilterMutasi(filter, kelas, OPSI_STATUS) + '<div data-isi></div>'
-    pasangAksi(akar, { buka, 'muat-ulang': () => muatIsi(akar) })
-    pasangFilter(akar.querySelector('[data-filter]'), filter, () => muatIsi(akar))
+      + formFilterMutasi(filter, kelas, OPSI_STATUS, false) + '<div data-isi></div>'
+    pasangAksi(akar, { buka: (id) => buka(id), 'muat-ulang': () => muatIsi(akar) })
+    pasangFilter(akar.querySelector('[data-filter]'), filter, () => muatIsi(akar, true))
     muatIsi(akar)
 
     if (!kelasAda) {
@@ -72,5 +79,7 @@ export function render(wadah) {
     window.scrollTo(0, 0)
   }
 
-  tampilDaftar()
+  const tersimpan = pulihkanTerbuka(PEMILIK)
+  if (tersimpan) buka(tersimpan.id, tersimpan.tab)
+  else tampilDaftar()
 }

@@ -1,7 +1,8 @@
 import { panggilApi } from './api.js'
-import { fileKeBase64, base64KeUrl } from './util.js'
+import { unduhPdfSurat } from './pdf.js'
+import { fileKeBase64, base64KeUrl, persen, kompresGambar } from './util.js'
 import {
-  esc, KELAS, memuat, judulHalaman, lencana, banner, galatMuat, isiUlang, pasangAksi,
+  esc, KELAS, spinner, namaJenisKelamin, memuat, judulHalaman, lencana, banner, galatMuat, isiUlang, pasangAksi,
   dialogKonfirmasi, dialogTanya, tampilPesan,
 } from './ui.js'
 
@@ -12,10 +13,14 @@ const NAMA_AKSI = {
   MUTASI_SETUJUI: 'Disetujui',
   MUTASI_TOLAK: 'Ditolak',
   MUTASI_BATAL_SETUJU: 'Persetujuan dibatalkan',
+  MUTASI_NOMOR_SURAT: 'Nomor surat diubah',
+  MUTASI_SURAT_TERBIT: 'Surat diterbitkan',
   LAMPIRAN_UNGGAH: 'Lampiran diunggah',
   LAMPIRAN_HAPUS: 'Lampiran dihapus',
 }
 const BATAS_RIWAYAT = 5
+const FOTO = 'Pas Foto'
+const EKSTENSI_FOTO = /\.(jpe?g|png)$/i
 const TAB_ID = ['data', 'lampiran', 'riwayat']
 const KOTAK_STATUS = {
   Ditolak: 'border-rose-200 bg-rose-50 text-rose-900',
@@ -23,7 +28,26 @@ const KOTAK_STATUS = {
   Disetujui: 'border-emerald-200 bg-emerald-50 text-emerald-900',
 }
 
-export function renderDetail(wadah, { id, hanyaBaca = false, bisaPutuskan = false, bisaBatalkan = false, onKembali, onUbah }) {
+/* Simpan detail yang sedang dibuka di localStorage, supaya refresh halaman kembali ke detail yang sama. */
+const KUNCI_TERBUKA = 'sim_mutasi_terbuka'
+let sudahPulih = false
+
+export function pulihkanTerbuka(pemilik) {
+  if (sudahPulih) return null
+  sudahPulih = true
+  try {
+    const x = JSON.parse(localStorage.getItem(KUNCI_TERBUKA))
+    return x && x.pemilik === pemilik && x.id ? x : null
+  } catch { return null }
+}
+export function hapusTerbuka() {
+  try { localStorage.removeItem(KUNCI_TERBUKA) } catch { /* penyimpanan tidak tersedia */ }
+}
+function tulisTerbuka(pemilik, id, tab) {
+  try { localStorage.setItem(KUNCI_TERBUKA, JSON.stringify({ pemilik, id, tab })) } catch { /* penyimpanan penuh/diblokir */ }
+}
+
+export function renderDetail(wadah, { id, pemilik = '', tabAwal = 'data', hanyaBaca = false, bisaPutuskan = false, bisaBatalkan = false, bisaHapusMutasi = false, bisaUbahNomor = false, onKembali, onUbah }) {
   const akar = document.createElement('div')
   akar.className = 'mut-detail'
   wadah.innerHTML = ''
@@ -34,8 +58,14 @@ export function renderDetail(wadah, { id, hanyaBaca = false, bisaPutuskan = fals
   let catatan = ''
   let info = ''
   let sibuk = false
-  let tab = 'data'
+  let tab = TAB_ID.includes(tabAwal) ? tabAwal : 'data'
   let semuaRiwayat = false
+  let fotoUrl = { id: '', url: '' }
+  let fotoMemuat = ''
+
+  const simpan = () => { if (pemilik) tulisTerbuka(pemilik, id, tab) }
+  const keluar = () => { hapusTerbuka(); onKembali() }
+  simpan()
 
   const tombolKembali = `<p class="mb-4"><button type="button" data-aksi="kembali" class="${KELAS.tombol}">&larr; Kembali ke daftar</button></p>`
 
@@ -52,6 +82,7 @@ export function renderDetail(wadah, { id, hanyaBaca = false, bisaPutuskan = fals
     try {
       if (await ambil()) gambar()
     } catch (err) {
+      if (/tidak ditemukan/i.test(err.message)) hapusTerbuka()
       if (akar.isConnected) akar.innerHTML = tombolKembali + galatMuat(err.message)
     }
   }
@@ -81,7 +112,7 @@ export function renderDetail(wadah, { id, hanyaBaca = false, bisaPutuskan = fals
     `<button type="button" data-aksi="${aksi}" data-sibuk class="${kelas}"${sibuk ? ' disabled' : ''}>${esc(teks)}</button>`
 
   function kotakStatus(m) {
-    const oleh = m.disetujui_oleh ? ' oleh ' + m.disetujui_oleh : ''
+    const oleh = m.disetujui_oleh ? ' oleh Kepala Sekolah' : ''
     const tgl = m.tanggal_persetujuan ? ' (' + m.tanggal_persetujuan + ')' : ''
     let judul = ''
     let baris = ''
@@ -94,11 +125,73 @@ export function renderDetail(wadah, { id, hanyaBaca = false, bisaPutuskan = fals
       if (m.diajukan_oleh) baris += `<p class="mt-1">Diajukan oleh ${esc(m.diajukan_oleh)} (${esc(m.tanggal_diajukan)})</p>`
     } else if (m.status === 'Disetujui') {
       judul = 'Disetujui' + oleh + tgl
+      baris += m.nomor_surat
+        ? `<p class="mt-1">Nomor surat: <strong>${esc(m.nomor_surat)}</strong> &middot; ${m.tanggal_terbit ? 'diterbitkan ' + esc(m.tanggal_terbit) : 'belum diterbitkan (nomor masih bisa diubah)'}</p>`
+        : '<p class="mt-1">Nomor surat belum diisi. Petugas TU mengetiknya saat mencetak surat.</p>'
       if (m.catatan_persetujuan) baris += `<p class="mt-1">Catatan: &ldquo;${esc(m.catatan_persetujuan)}&rdquo;</p>`
     } else {
       return ''
     }
     return `<div role="status" class="mb-5 rounded-2xl border p-4 text-sm font-medium ${KOTAK_STATUS[m.status]}"><strong class="font-bold text-base block">${esc(judul)}</strong>${baris}</div>`
+  }
+
+  function fotoLampiran() {
+    return detail.lampiran.find((l) => l.jenis_dokumen === FOTO && EKSTENSI_FOTO.test(String(l.nama_file))) || null
+  }
+
+  function isiFoto(m) {
+    const f = fotoLampiran()
+    if (f && fotoUrl.id === f.id && fotoUrl.url) {
+      return `<img src="${esc(fotoUrl.url)}" alt="${esc('Pas foto ' + m.nama_siswa)}" class="h-full w-full object-cover">`
+    }
+    const inisial = String(m.nama_siswa || '?').trim().charAt(0).toUpperCase()
+    return `<span class="text-3xl font-bold text-slate-400" aria-hidden="true">${esc(inisial)}</span>`
+  }
+
+  async function muatFoto() {
+    const f = fotoLampiran()
+    if (!f || fotoUrl.id === f.id || fotoMemuat === f.id) return
+    fotoMemuat = f.id
+    try {
+      const data = await panggilApi('lampiranAmbil', { id: f.id })
+      if (!akar.isConnected) return
+      if (fotoUrl.url) URL.revokeObjectURL(fotoUrl.url)
+      fotoUrl = { id: f.id, url: base64KeUrl(data.mime, data.base64) }
+      const el = akar.querySelector('[data-foto]')
+      if (el) el.innerHTML = isiFoto(detail.mutasi)
+    } catch (err) {
+      /* foto gagal dimuat: tetap tampilkan inisial */
+    } finally {
+      fotoMemuat = ''
+    }
+  }
+
+  function kartuHeader(m) {
+    const { lampiran, wajib } = detail
+    const ada = (jd) => lampiran.some((l) => l.jenis_dokumen === jd)
+    const lengkap = wajib.filter(ada).length
+    const pers = persen(lengkap, wajib.length)
+    const semua = wajib.length > 0 && lengkap === wajib.length
+    const chip = (jd) => {
+      const ok = ada(jd)
+      return `<li class="inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-semibold ${ok ? 'border-emerald-200 bg-emerald-50 text-emerald-900' : 'border-rose-200 bg-rose-50 text-rose-700'}">`
+        + `<span aria-hidden="true">${ok ? '&#10003;' : '&#10007;'}</span>${esc(jd)}<span class="sr-only">${ok ? ' (lengkap)' : ' (belum ada)'}</span></li>`
+    }
+    return `<section aria-label="Ringkasan siswa dan kelengkapan berkas" class="mb-5 flex flex-col gap-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:flex-row sm:items-center">
+      <div data-foto class="flex h-32 w-24 shrink-0 items-center justify-center self-start overflow-hidden rounded-xl border border-slate-200 bg-slate-100">${isiFoto(m)}</div>
+      <div class="min-w-0 flex-1">
+        <dl class="mb-4 grid gap-x-6 gap-y-2 text-sm sm:grid-cols-3">
+          <div><dt class="text-xs font-semibold text-slate-400">NISN/NIS</dt><dd class="font-semibold text-slate-800">${esc(m.nisn_nis || '-')}</dd></div>
+          <div><dt class="text-xs font-semibold text-slate-400">Kelas tujuan</dt><dd class="font-semibold text-slate-800">${esc(m.nama_kelas || '-')}</dd></div>
+          <div><dt class="text-xs font-semibold text-slate-400">Tanggal masuk</dt><dd class="font-semibold text-slate-800">${esc(m.tanggal || '-')}</dd></div>
+        </dl>
+        <div class="mb-2 flex items-center justify-between gap-2 text-sm">
+          <span class="font-bold text-slate-900">Kelengkapan berkas</span>
+          <span class="flex items-center gap-2"><span class="font-semibold text-slate-500">${lengkap} dari ${wajib.length}</span>${lencana(semua ? 'Disetujui' : 'Ditolak', semua ? 'Lengkap' : 'Belum lengkap')}</span></div>
+        <div class="mb-3 h-2 overflow-hidden rounded-full bg-slate-100" role="progressbar" aria-valuemin="0" aria-valuemax="${wajib.length}" aria-valuenow="${lengkap}" aria-label="Kelengkapan berkas wajib">
+          <div class="h-full min-w-[2px] rounded-full bg-blue-600" style="width:${pers}%"></div></div>
+        <ul class="flex flex-wrap gap-2">${wajib.map(chip).join('')}</ul>
+      </div></section>`
   }
 
   function panelData(m) {
@@ -143,15 +236,15 @@ export function renderDetail(wadah, { id, hanyaBaca = false, bisaPutuskan = fals
             <span class="min-w-0 truncate font-semibold text-slate-700" title="${esc(l.nama_file)}">${esc(l.nama_file)}</span>
             <span class="flex shrink-0 gap-1.5">
               <button type="button" data-aksi="lihat" data-id="${esc(l.id)}" class="${KELAS.tombol} ${KELAS.kecil}">Lihat File</button>
-              ${bisaUbah ? `<button type="button" data-aksi="hapus-lampiran" data-id="${esc(l.id)}" data-sibuk class="${KELAS.tombol} ${KELAS.kecil} text-rose-600 hover:bg-rose-50 border-rose-200"${sibuk ? ' disabled' : ''}>Hapus</button>` : ''}
+              ${bisaUbah && bisaHapusMutasi ? `<button type="button" data-aksi="hapus-lampiran" data-id="${esc(l.id)}" data-sibuk class="${KELAS.tombol} ${KELAS.kecil} text-rose-600 hover:bg-rose-50 border-rose-200"${sibuk ? ' disabled' : ''}>Hapus</button>` : ''}
             </span></div>`).join('')}
         </div>
         ${bisaUbah ? `<label data-unggah class="${KELAS.tombol} ${KELAS.kecil} mt-4 cursor-pointer justify-center ${sibuk ? ' pointer-events-none opacity-50' : ''}">
           ${esc(files.length ? 'Unggah file lain' : 'Unggah ' + jd)}
-          <input type="file" data-jenis="${esc(jd)}" class="sr-only" accept=".pdf,.jpg,.jpeg,.png" data-sibuk${sibuk ? ' disabled' : ''}></label>` : ''}</li>`
+          <input type="file" data-jenis="${esc(jd)}" class="sr-only" accept="${jd === FOTO ? '.jpg,.jpeg,.png' : '.pdf,.jpg,.jpeg,.png'}" data-sibuk${sibuk ? ' disabled' : ''}></label>` : ''}</li>`
     }).join('')
     return `<div role="tabpanel" id="panel-lampiran" aria-labelledby="tab-lampiran">
-      <p class="mb-4 text-sm font-medium text-slate-500"><strong class="text-slate-900 font-bold">${lengkap} dari ${wajib.length}</strong> dokumen wajib lengkap. Format PDF, JPG, atau PNG, maksimal ${esc(maksMb)} MB per file.</p>
+      <p class="mb-4 text-sm font-medium text-slate-500"><strong class="text-slate-900 font-bold">${lengkap} dari ${wajib.length}</strong> dokumen wajib lengkap. Format PDF, JPG, atau PNG, maksimal ${esc(maksMb)} MB per file.${wajib.includes(FOTO) ? ' Pas Foto hanya JPG atau PNG.' : ''}</p>
       <ul class="grid gap-5 md:grid-cols-2">${daftar}</ul></div>`
   }
 
@@ -171,14 +264,18 @@ export function renderDetail(wadah, { id, hanyaBaca = false, bisaPutuskan = fals
   function gambar() {
     const { mutasi: m, lampiran, wajib, peringatan } = detail
     const bisaUbah = !hanyaBaca && (m.status === 'Draft' || m.status === 'Ditolak')
-    const bisaHapus = !hanyaBaca && m.status !== 'Disetujui'
+    const bisaHapus = !hanyaBaca && bisaHapusMutasi && m.status !== 'Disetujui' // hapus: Admin saja (sama dengan backend)
     const tampilPutusan = bisaPutuskan && m.status === 'Diajukan'
     const tampilBatal = bisaBatalkan && m.status === 'Disetujui'
+    const tampilSurat = m.status === 'Disetujui'
+    const bisaNomor = tampilSurat && bisaUbahNomor && !m.tanggal_terbit && Boolean(m.nomor_surat)
     const lengkap = wajib.filter((jd) => lampiran.some((l) => l.jenis_dokumen === jd)).length
 
     const aksiJudul = [
       bisaUbah ? tombol('ubah', 'Ubah data') : '',
       bisaUbah ? tombol('ajukan', m.status === 'Ditolak' ? 'Ajukan ulang' : 'Ajukan ke Kepala Sekolah', KELAS.utama + ' mut-utama') : '',
+      bisaNomor ? tombol('ubah-nomor', 'Ubah nomor surat') : '',
+      tampilSurat ? tombol('cetak-surat', 'Cetak Surat Keterangan', KELAS.utama + ' mut-utama') : '',
       tampilBatal ? tombol('batalkan', 'Batalkan persetujuan', KELAS.bahaya) : '',
       bisaHapus ? `<details class="relative">
         <summary aria-label="Aksi lainnya" class="${KELAS.tombol} cursor-pointer list-none [&::-webkit-details-marker]:hidden">&#8943;</summary>
@@ -198,8 +295,9 @@ export function renderDetail(wadah, { id, hanyaBaca = false, bisaPutuskan = fals
 
     const putusan = tampilPutusan ? `<section aria-labelledby="mut-putusan" class="mb-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
       <h3 id="mut-putusan" class="mb-3 text-lg font-bold text-slate-900">Form Keputusan Kepala Sekolah</h3>
-      <label class="block text-sm font-semibold text-slate-800">Catatan (wajib diisi jika menolak)
-        <textarea name="catatan" rows="3" class="${KELAS.input} mt-1.5 font-normal">${esc(catatan)}</textarea></label>
+      <label class="block text-sm font-semibold text-slate-800">Catatan
+        <textarea name="catatan" rows="3" aria-describedby="catatan-petunjuk" class="${KELAS.input} mt-1.5 font-normal">${esc(catatan)}</textarea></label>
+      <p id="catatan-petunjuk" data-petunjuk-catatan class="mt-1.5 text-xs font-medium text-slate-500">Wajib diisi jika menolak pengajuan.</p>
       <div class="mut-putusan-aksi mt-4 flex gap-3">${tombol('setujui', 'Setujui Pengajuan', KELAS.utama)}${tombol('tolak', 'Tolak Pengajuan', KELAS.bahaya)}</div></section>` : ''
 
     isiUlang(akar, tombolKembali
@@ -211,10 +309,12 @@ export function renderDetail(wadah, { id, hanyaBaca = false, bisaPutuskan = fals
       })
       + `<div data-pesan>${info ? banner({ teks: info }) : ''}</div>`
       + (peringatan ? `<p role="alert" class="mb-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-medium text-amber-900">${esc(peringatan)}</p>` : '')
+      + kartuHeader(m)
       + kotakStatus(m)
       + putusan
       + barTab
       + (tab === 'data' ? panelData(m) : tab === 'lampiran' ? panelLampiran(bisaUbah) : panelRiwayat(m)))
+    muatFoto()
   }
 
   async function jalankan(kerja) {
@@ -229,10 +329,19 @@ export function renderDetail(wadah, { id, hanyaBaca = false, bisaPutuskan = fals
   }
 
   async function unggah(jenisDokumen, input) {
-    const file = input.files[0]
+    let file = input.files[0]
     input.value = ''
     if (!file) return
     const { mutasi: m, maks_mb: maksMb } = detail
+    if (jenisDokumen === FOTO && !EKSTENSI_FOTO.test(file.name)) {
+      tampilPesan({ jenis: 'galat', teks: 'Pas Foto harus berformat JPG atau PNG' })
+      return
+    }
+    if (/^image\//.test(file.type)) {
+      setInfo('Memperkecil gambar...')
+      file = await kompresGambar(file)
+      setInfo('')
+    }
     if (file.size > maksMb * 1024 * 1024) {
       tampilPesan({ jenis: 'galat', teks: 'Ukuran file melebihi ' + maksMb + ' MB' })
       return
@@ -243,7 +352,7 @@ export function renderDetail(wadah, { id, hanyaBaca = false, bisaPutuskan = fals
       const base64 = await fileKeBase64(file)
       await panggilApi('lampiranUnggah', { mutasi_id: m.id, jenis_dokumen: jenisDokumen, nama_file: file.name, base64 })
       setInfo('')
-      tampilPesan({ jenis: 'sukses', teks: 'Lampiran terunggah' })
+      tampilPesan({ jenis: 'sukses', teks: 'Lampiran ' + file.name + ' berhasil diunggah' })
       await segarkan()
     } catch (err) {
       setInfo('')
@@ -253,16 +362,102 @@ export function renderDetail(wadah, { id, hanyaBaca = false, bisaPutuskan = fals
     }
   }
 
-  async function lihat(idLampiran) {
-    const tabBaru = window.open('', '_blank')
-    try {
-      const data = await panggilApi('lampiranAmbil', { id: idLampiran })
-      const url = base64KeUrl(data.mime, data.base64)
-      if (tabBaru) tabBaru.location.href = url
-    } catch (err) {
-      if (tabBaru) tabBaru.close()
-      tampilPesan({ jenis: 'galat', teks: err.message })
+  /* Penampil berkas: modal dengan daftar berkas, tampilan file, dan data siswa di samping (desktop).
+   * Ini kemudahan memeriksa berkas tanpa pindah tab, bukan pengaman: penampil PDF peramban tetap punya tombol unduh. */
+  function lihat(idLampiran) {
+    const berkas = detail.lampiran
+    if (!berkas.some((l) => String(l.id) === String(idLampiran))) return
+    const m = detail.mutasi
+    const d = document.createElement('dialog')
+    d.className = 'dlg dlg-penuh rounded-2xl border border-slate-200 p-0 backdrop:bg-slate-900/60 backdrop:backdrop-blur-sm shadow-2xl'
+    d.setAttribute('aria-label', 'Penampil berkas')
+    const baris = (label, nilai) => `<div><dt class="text-xs font-semibold text-slate-400">${esc(label)}</dt><dd class="mt-0.5 break-words text-sm font-semibold text-slate-800">${esc(nilai || '-')}</dd></div>`
+    d.innerHTML = `<div class="flex h-full flex-col">
+      <header class="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
+        <div class="min-w-0"><h2 data-judul class="truncate text-base font-bold text-slate-900"></h2>
+          <p data-sub class="truncate text-xs font-medium text-slate-500"></p></div>
+        <div class="flex shrink-0 gap-2">
+          <button type="button" data-tab-baru class="${KELAS.tombol} ${KELAS.kecil}" disabled>Buka di tab baru</button>
+          <button type="button" data-tutup class="${KELAS.tombol} ${KELAS.kecil}" aria-label="Tutup penampil">Tutup</button></div>
+      </header>
+      <div class="flex min-h-0 flex-1 flex-col md:flex-row">
+        <nav aria-label="Daftar berkas" class="flex shrink-0 gap-2 overflow-x-auto border-b border-slate-200 p-3 md:w-56 md:flex-col md:overflow-y-auto md:border-b-0 md:border-r">${berkas.map((l) =>
+          `<button type="button" data-file="${esc(l.id)}" class="min-w-[9rem] rounded-xl border border-slate-200 bg-white px-3 py-2 text-left text-sm transition-colors hover:bg-slate-50 aria-[current=true]:border-blue-600 aria-[current=true]:bg-blue-50 md:min-w-0">
+            <strong class="block truncate font-bold text-slate-900">${esc(l.jenis_dokumen)}</strong>
+            <span class="block truncate text-xs text-slate-500">${esc(l.nama_file)}</span></button>`).join('')}</nav>
+        <div data-area class="flex min-h-0 flex-1 items-center justify-center overflow-auto bg-slate-100 p-2"></div>
+        <aside aria-label="Data siswa" class="hidden w-64 shrink-0 overflow-y-auto border-l border-slate-200 p-4 lg:block">
+          <h3 class="mb-3 text-sm font-bold text-slate-900">Data untuk dicocokkan</h3>
+          <dl class="grid gap-3">${baris('Nama siswa', m.nama_siswa)}${baris('NISN/NIS', m.nisn_nis)}${baris('Jenis kelamin', namaJenisKelamin(m.jenis_kelamin))}
+            ${baris('Tempat, tanggal lahir', (m.tempat_lahir || '-') + ', ' + (m.tanggal_lahir || '-'))}${baris('Alamat', m.alamat)}
+            ${baris('Sekolah asal', m.sekolah)}${baris('Kelas tujuan', m.nama_kelas)}</dl></aside>
+      </div></div>`
+    document.body.appendChild(d)
+
+    const area = d.querySelector('[data-area]')
+    const tombolBaru = d.querySelector('[data-tab-baru]')
+    const blobs = new Map() // id -> { url, mime }
+    let urutan = 0
+    let aktifUrl = ''
+    // iframe PDF hanya dipakai di layar lebar dengan penunjuk presisi; di HP sering kosong/halaman 1 saja.
+    const bisaIframePdf = () => window.matchMedia('(min-width: 768px) and (pointer: fine)').matches
+
+    async function tampil(id) {
+      const saya = ++urutan
+      const l = berkas.find((x) => String(x.id) === String(id))
+      if (!l) return
+      d.querySelectorAll('[data-file]').forEach((b) => b.setAttribute('aria-current', String(b.dataset.file === String(id))))
+      d.querySelector('[data-judul]').textContent = l.jenis_dokumen
+      d.querySelector('[data-sub]').textContent = l.nama_file
+      tombolBaru.disabled = true
+      aktifUrl = ''
+      area.innerHTML = `<div role="status" class="flex items-center gap-2 text-sm font-semibold text-slate-600">${spinner('h-5 w-5')}<span>Memuat berkas...</span></div>`
+      try {
+        let b = blobs.get(String(id))
+        if (!b) {
+          const data = await panggilApi('lampiranAmbil', { id: l.id })
+          b = { url: base64KeUrl(data.mime, data.base64), mime: data.mime }
+          if (!d.isConnected) { URL.revokeObjectURL(b.url); return }
+          blobs.set(String(id), b)
+        }
+        if (saya !== urutan) return
+        aktifUrl = b.url
+        tombolBaru.disabled = false
+        if (/^image\//.test(b.mime)) {
+          area.innerHTML = `<img src="${esc(b.url)}" alt="${esc(l.jenis_dokumen + ' ' + m.nama_siswa)}" class="max-h-full max-w-full object-contain">`
+        } else if (bisaIframePdf()) {
+          area.innerHTML = `<iframe src="${esc(b.url)}" title="${esc(l.nama_file)}" class="h-full w-full border-0 bg-white"></iframe>`
+        } else {
+          area.innerHTML = `<div class="grid max-w-xs justify-items-center gap-3 p-6 text-center">
+            <p class="text-sm font-medium text-slate-600">PDF tidak ditampilkan di perangkat ini. Buka di tab baru untuk membacanya.</p>
+            <button type="button" data-tab-baru-isi class="${KELAS.utama}">Buka di tab baru</button></div>`
+        }
+      } catch (err) {
+        if (saya !== urutan || !d.isConnected) return
+        area.innerHTML = `<div role="alert" class="grid max-w-sm justify-items-center gap-3 p-6 text-center">
+          <p class="text-sm font-medium text-rose-700">${esc(err.message)}</p>
+          <button type="button" data-ulang="${esc(id)}" class="${KELAS.tombol}">Coba lagi</button></div>`
+      }
     }
+
+    const bukaTabBaru = () => { if (aktifUrl) window.open(aktifUrl, '_blank', 'noopener') }
+    d.addEventListener('click', (e) => {
+      const t = e.target
+      if (!t.closest) return
+      if (t.closest('[data-tutup]')) d.close()
+      else if (t.closest('[data-tab-baru], [data-tab-baru-isi]')) bukaTabBaru()
+      else if (t.closest('[data-ulang]')) tampil(t.closest('[data-ulang]').dataset.ulang)
+      else if (t.closest('[data-file]')) tampil(t.closest('[data-file]').dataset.file)
+      else if (t === d) d.close() // klik di luar kotak
+    })
+    d.addEventListener('close', () => {
+      blobs.forEach((b) => URL.revokeObjectURL(b.url)) // lepas memori
+      blobs.clear()
+      d.remove()
+    }, { once: true })
+
+    d.showModal()
+    tampil(idLampiran)
   }
 
   async function hapusLampiran(idLampiran) {
@@ -272,6 +467,7 @@ export function renderDetail(wadah, { id, hanyaBaca = false, bisaPutuskan = fals
     if (!ya || !akar.isConnected) return
     try {
       await panggilApi('lampiranHapus', { id: l.id })
+      tampilPesan({ jenis: 'sukses', teks: 'Lampiran ' + l.nama_file + ' berhasil dihapus' })
       await segarkan()
     } catch (err) {
       tampilPesan({ jenis: 'galat', teks: err.message })
@@ -302,7 +498,8 @@ export function renderDetail(wadah, { id, hanyaBaca = false, bisaPutuskan = fals
     if (!ya || !akar.isConnected) return
     try {
       await panggilApi('mutasiHapus', { id: detail.mutasi.id })
-      onKembali()
+      tampilPesan({ jenis: 'sukses', teks: 'Data siswa masuk berhasil dihapus' })
+      keluar()
     } catch (err) {
       tampilPesan({ jenis: 'galat', teks: err.message })
     }
@@ -323,9 +520,23 @@ export function renderDetail(wadah, { id, hanyaBaca = false, bisaPutuskan = fals
     })
   }
 
+  // Petunjuk di bawah kolom Catatan berubah merah bila kosong saat menolak (tanpa kartu/toast).
+  function tandaiCatatan(galat) {
+    const kolom = akar.querySelector('textarea[name="catatan"]')
+    const petunjuk = akar.querySelector('[data-petunjuk-catatan]')
+    if (!kolom || !petunjuk) return
+    petunjuk.classList.toggle('text-rose-600', galat)
+    petunjuk.classList.toggle('font-semibold', galat)
+    petunjuk.classList.toggle('text-slate-500', !galat)
+    petunjuk.classList.toggle('font-medium', !galat)
+    kolom.classList.toggle('!border-rose-500', galat)
+    if (galat) { kolom.setAttribute('aria-invalid', 'true'); kolom.focus() }
+    else kolom.removeAttribute('aria-invalid')
+  }
+
   async function tolak() {
     if (!catatan.trim()) {
-      tampilPesan({ jenis: 'galat', teks: 'Catatan wajib diisi jika menolak' })
+      tandaiCatatan(true)
       return
     }
     const ya = await dialogKonfirmasi({
@@ -339,6 +550,54 @@ export function renderDetail(wadah, { id, hanyaBaca = false, bisaPutuskan = fals
       await panggilApi('mutasiTolak', { id: detail.mutasi.id, catatan })
       tampilPesan({ jenis: 'sukses', teks: 'Pengajuan ditolak' })
       catatan = ''
+      await segarkan()
+    })
+  }
+
+  async function cetakSurat() {
+    const m = detail.mutasi
+    let nomor = ''
+    if (!m.nomor_surat) {
+      if (!bisaUbahNomor) {
+        tampilPesan({ jenis: 'galat', teks: 'Nomor surat belum diisi. Minta Petugas TU mengetik nomor surat dulu.' })
+        return
+      }
+      const isi = await dialogTanya({
+        judul: 'Nomor surat',
+        pesan: 'Ketik nomor surat, contoh 001/422/XI/2026. Surat diterbitkan dengan tanggal hari ini, lalu nomor terkunci.',
+        label: 'Nomor surat',
+        ya: 'Terbitkan dan cetak',
+      })
+      if (!isi || !isi.trim() || !akar.isConnected) return
+      nomor = isi.trim()
+    } else if (!m.tanggal_terbit) {
+      const ya = await dialogKonfirmasi({
+        judul: 'Terbitkan surat keterangan?',
+        pesan: 'Surat diterbitkan dengan tanggal hari ini. Setelah itu nomor surat terkunci dan cetak ulang memakai tanggal yang sama.',
+        ya: 'Terbitkan dan cetak',
+      })
+      if (!ya || !akar.isConnected) return
+    }
+    await jalankan(async () => {
+      const data = await panggilApi('suratData', { id: m.id, nomor })
+      const nama = await unduhPdfSurat(data)
+      tampilPesan({ jenis: 'sukses', teks: 'Surat diunduh: ' + nama })
+      await segarkan()
+    })
+  }
+
+  async function ubahNomor() {
+    const m = detail.mutasi
+    const nomor = await dialogTanya({
+      judul: 'Ubah nomor surat',
+      pesan: 'Nomor saat ini: ' + (m.nomor_surat || '(belum dibuat)') + '. Setelah surat dicetak, nomor terkunci.',
+      label: 'Nomor surat baru',
+      ya: 'Simpan nomor',
+    })
+    if (!nomor || !nomor.trim() || !akar.isConnected) return
+    await jalankan(async () => {
+      await panggilApi('suratNomorUbah', { id: m.id, nomor: nomor.trim() })
+      tampilPesan({ jenis: 'sukses', teks: 'Nomor surat diperbarui' })
       await segarkan()
     })
   }
@@ -362,20 +621,22 @@ export function renderDetail(wadah, { id, hanyaBaca = false, bisaPutuskan = fals
   const tutupMenu = (el) => { const d = el && el.closest('details'); if (d) d.open = false }
 
   pasangAksi(akar, {
-    kembali: () => onKembali(),
+    kembali: keluar,
     'muat-ulang': muatAwal,
     ubah: () => onUbah(),
     ajukan,
     batalkan,
+    'cetak-surat': cetakSurat,
+    'ubah-nomor': ubahNomor,
     setujui,
     tolak,
     lihat,
     'hapus-lampiran': hapusLampiran,
     'hapus-mutasi': (_, el) => { tutupMenu(el); hapusMutasi() },
-    tab: (idTab) => { tab = idTab; gambar() },
+    tab: (idTab) => { tab = idTab; simpan(); gambar() },
     'semua-riwayat': () => { semuaRiwayat = !semuaRiwayat; gambar() },
   })
-  akar.addEventListener('input', (e) => { if (e.target.name === 'catatan') catatan = e.target.value })
+  akar.addEventListener('input', (e) => { if (e.target.name === 'catatan') { catatan = e.target.value; if (catatan.trim()) tandaiCatatan(false) } })
   akar.addEventListener('keydown', (e) => {
     if (!e.target.closest || !e.target.closest('[role="tab"]')) return
     const i = TAB_ID.indexOf(tab)
@@ -387,6 +648,7 @@ export function renderDetail(wadah, { id, hanyaBaca = false, bisaPutuskan = fals
     if (!baru) return
     e.preventDefault()
     tab = baru
+    simpan()
     gambar()
     const el = akar.querySelector('#tab-' + baru)
     if (el) el.focus()

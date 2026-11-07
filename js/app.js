@@ -1,8 +1,8 @@
 import { panggilApi, ambilToken, hapusToken } from './api.js'
 import { menuUntuk, NAMA_PERAN } from './menu.js'
 import { bacaHalaman, pindah, saatBerubah, HALAMAN, TAHAP } from './router.js'
-import * as ui from './ui.js'
-import { esc, ikon, memuat, inisial, dialogKonfirmasi } from './ui.js'
+import { esc, ikon, memuat, dialogKonfirmasi } from './ui.js'
+import { isiAvatar, muatFotoProfil, lupakanFoto } from './foto.js'
 import * as login from './halaman/login.js'
 
 const NAMA_SEKOLAH = ['SMP Negeri 1', 'Tapa']
@@ -15,6 +15,7 @@ let urutan = 0
 function tampilLogin() {
   urutan++
   pengguna = null
+  lupakanFoto()
   document.body.classList.remove('laci-buka')
   $('aplikasi').classList.add('hidden')
   $('layar').classList.remove('hidden')
@@ -30,14 +31,22 @@ function masuk() {
   tampilHalaman()
 }
 
-function bangunKerangka() {
+// Halaman yang dibuka dari menu akun (kanan atas), bukan dari sidebar.
+const HALAMAN_AKUN = { profil: 'Profil Saya' }
+
+function isiIdentitas() {
   const peran = NAMA_PERAN[pengguna.peran] || pengguna.peran
-  $('sekolah-1').textContent = NAMA_SEKOLAH[0]
-  $('sekolah-2').textContent = NAMA_SEKOLAH[1]
-  for (const id of ['samping-avatar', 'akun-avatar']) $(id).textContent = inisial(pengguna.nama)
+  for (const id of ['samping-avatar', 'akun-avatar']) isiAvatar($(id), pengguna.nama)
   for (const id of ['samping-nama', 'akun-nama', 'panel-nama']) $(id).textContent = pengguna.nama
   for (const id of ['samping-peran', 'akun-peran', 'panel-peran']) $(id).textContent = peran
   $('akun-tombol').setAttribute('aria-label', 'Menu akun ' + pengguna.nama)
+}
+
+function bangunKerangka() {
+  $('sekolah-1').textContent = NAMA_SEKOLAH[0]
+  $('sekolah-2').textContent = NAMA_SEKOLAH[1]
+  isiIdentitas()
+  if (pengguna.ada_foto) muatFotoProfil()
 
   $('menu').innerHTML = menuUntuk(pengguna.peran).map((m) => {
     const isi = ikon(m.ikon, 'h-5 w-5') + `<span class="font-semibold">${esc(m.label)}${m.tersedia ? '' : ' (segera)'}</span>`
@@ -73,8 +82,8 @@ async function tampilHalaman() {
   if (!pengguna) return
   const menu = menuUntuk(pengguna.peran)
   const diminta = bacaHalaman()
-  const id = menu.some((m) => m.id === diminta && m.tersedia) ? diminta : 'beranda'
-  const label = (menu.find((m) => m.id === id) || {}).label || 'Beranda'
+  const id = HALAMAN_AKUN[diminta] || menu.some((m) => m.id === diminta && m.tersedia) ? diminta : 'beranda'
+  const label = HALAMAN_AKUN[id] || (menu.find((m) => m.id === id) || {}).label || 'Beranda'
 
   $('judul').textContent = label
   document.title = label + ' - ' + JUDUL_APP
@@ -138,7 +147,16 @@ function pasangEvent() {
   window.matchMedia('(min-width: 640px)').addEventListener('change', (e) => { if (e.matches) bukaLaci(false) })
 
   $('akun-tombol').addEventListener('click', () => bukaAkun($('akun-panel').hidden))
+  $('btn-profil').addEventListener('click', () => { bukaAkun(false); pindah('profil') })
   $('btn-keluar').addEventListener('click', () => { bukaAkun(false); keluar() })
+  window.addEventListener('profil-berubah', (e) => {
+    if (!pengguna) return
+    Object.assign(pengguna, e.detail)
+    isiIdentitas()
+  })
+  window.addEventListener('foto-berubah', () => {
+    if (pengguna) isiIdentitas()
+  })
   document.addEventListener('pointerdown', (e) => {
     if (!$('akun-panel').hidden && !$('akun').contains(e.target)) bukaAkun(false)
   })
@@ -164,7 +182,5 @@ async function mulai() {
     tampilLogin()
   }
 }
-
-window.ui = ui
 
 mulai()

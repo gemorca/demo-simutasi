@@ -331,14 +331,14 @@ function bangunTabel(doc, { y, kepala, isi, lebar, rata, ukuran = PDF_UKURAN.tab
   return doc.lastAutoTable.finalY + 7
 }
 
-function gambarTandaTangan(doc, y, sekolah, tanggalCetak) {
+function gambarTandaTangan(doc, y, sekolah, tanggalCetak, kotaTtd = PDF_KOTA) {
   const { lebar } = halaman(doc)
   const tinggiBlok = 46
   const yy = pastikanRuang(doc, y, tinggiBlok)
   const lebarBlok = 70
   const xBlok = lebar - PDF_MARGIN - lebarBlok
   const pusat = xBlok + lebarBlok / 2
-  const kota = PDF_KOTA ? PDF_KOTA + ', ' : ''
+  const kota = kotaTtd ? aman(kotaTtd) + ', ' : ''
 
   doc.setFont(PDF_FONT, 'normal')
   doc.setFontSize(PDF_UKURAN.isi)
@@ -460,6 +460,63 @@ export async function unduhPdfRekap(lap) {
   nomorHalaman(doc, 'Rekapitulasi Mutasi Siswa Masuk, ' + bersihkan(periode.label))
 
   const nama = namaFilePdf('rekap-mutasi', periode.label)
+  doc.save(nama)
+  return nama
+}
+
+/* Surat Keterangan siswa masuk. Data dari aksi suratData: nomor dan tanggal terbit tetap,
+ * jadi cetak ulang menghasilkan surat yang sama. */
+export async function unduhPdfSurat(data) {
+  const sekolah = data.sekolah || {}
+  const surat = data.surat || {}
+  const siswa = data.siswa || {}
+  const tempat = data.penempatan || {}
+  const jk = String(siswa.jenis_kelamin).toUpperCase() === 'L' ? 'Laki-laki'
+    : String(siswa.jenis_kelamin).toUpperCase() === 'P' ? 'Perempuan' : bersihkan(siswa.jenis_kelamin)
+
+  const [jsPDF, logo] = await Promise.all([
+    muatJspdf(),
+    muatGambar(['assets/logo-sekolah.png']),
+  ])
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+  doc.setProperties({ title: 'Surat Keterangan ' + bersihkan(siswa.nama) })
+  const { lebar } = halaman(doc)
+  const area = lebar - 2 * PDF_MARGIN
+
+  let y = gambarKop(doc, sekolah, logo)
+  y = gambarJudul(doc, y + 2, 'Surat Keterangan')
+  doc.setFont(PDF_FONT, 'normal')
+  doc.setFontSize(PDF_UKURAN.isi)
+  doc.setTextColor(...PDF_WARNA.teks)
+  doc.text('Nomor: ' + aman(surat.nomor), lebar / 2, y, { align: 'center', baseline: 'top' })
+  y += 10
+
+  y = tulisTeksCampuran(doc,
+    `Yang bertanda tangan di bawah ini, Kepala <b>${aman(sekolah.nama)}</b>, menerangkan bahwa:`,
+    PDF_MARGIN, y, area) + 3
+
+  y = gambarKeterangan(doc, y, [
+    ['Nama', `<b>${aman(siswa.nama)}</b>`],
+    ['NISN/NIS', aman(siswa.nisn_nis)],
+    ['Tempat, tanggal lahir', `${aman(siswa.tempat_lahir)}, ${tanggalIndonesia(siswa.tanggal_lahir)}`],
+    ['Jenis kelamin', jk],
+    ['Alamat', aman(siswa.alamat)],
+    ['Kelas', aman(tempat.nama_kelas)],
+  ])
+  y += 2
+
+  y = tulisTeksCampuran(doc,
+    `adalah benar telah diterima sebagai siswa pindahan dari <b>${aman(tempat.sekolah_asal)}</b> `
+    + `dan terdaftar sebagai siswa <b>${aman(sekolah.nama)}</b> kelas <b>${aman(tempat.nama_kelas)}</b> `
+    + `tahun ajaran ${aman(tempat.tahun_ajaran)}, terhitung mulai tanggal ${tanggalIndonesia(tempat.tanggal_masuk)}.`,
+    PDF_MARGIN, y, area) + 3
+  y = tulisTeksCampuran(doc,
+    'Demikian surat keterangan ini dibuat untuk dipergunakan sebagaimana mestinya.',
+    PDF_MARGIN, y, area) + 6
+
+  gambarTandaTangan(doc, y, sekolah, surat.tanggal_terbit, sekolah.kota)
+
+  const nama = namaFilePdf('surat-keterangan', siswa.nama)
   doc.save(nama)
   return nama
 }

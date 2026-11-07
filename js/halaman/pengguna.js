@@ -2,7 +2,7 @@ import { panggilApi } from '../api.js'
 import {
   esc, KELAS, IKON, memuat, judulHalaman, medan, tandaiGalat, bersihkanGalat, bacaForm, barSimpan, sibukSimpan,
   galatMuat, tabel, lencana, isiUlang, pasangAksi, pilihanMassal, barAlat, barAksiBawah, ringkasanMassal,
-  dialogKonfirmasi, tampilPesan, notif,
+  dialogKonfirmasi, dialogPasswordBaru, tampilPesan, notif, spinner,
 } from '../ui.js'
 import { NAMA_PERAN } from '../menu.js'
 import { periksa, wajib, minPanjang } from '../validasi.js'
@@ -10,9 +10,12 @@ import { periksa, wajib, minPanjang } from '../validasi.js'
 const IK_ORANG = 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8'
 const SATUAN = 'pengguna'
 
+const POLA_USERNAME = /^[a-z0-9._-]{3,30}$/
+const cekUsername = (v) => (POLA_USERNAME.test(String(v).trim().toLowerCase())
+  ? '' : 'Username 3-30 karakter: huruf kecil, angka, titik, strip, garis bawah')
 const ATURAN_DASAR = {
   nama: [wajib('Nama wajib diisi')],
-  username: [wajib('Username wajib diisi')],
+  username: [wajib('Username wajib diisi'), cekUsername],
   peran: [wajib('Pilih peran')],
 }
 const ATURAN_BARU = {
@@ -41,16 +44,18 @@ export function render(wadah, saya) {
       barAlat({ pilihan, total: bisaDipilih().length, satuan: SATUAN, sibuk })
       + tabel({
         kolom: [
-          { judul: 'Nama', html: (u) => `<strong class="text-slate-900">${esc(u.nama)}</strong>` },
+          { judul: 'Nama', isi: 'kiri', html: (u) => `<strong class="text-slate-900">${esc(u.nama)}</strong>` },
           { judul: 'Username', nilai: (u) => u.username },
           { judul: 'Peran', nilai: (u) => NAMA_PERAN[u.peran] || u.peran },
           { judul: 'Status', rata: 'tengah', html: (u) => lencana(u.aktif ? 'Aktif' : 'Nonaktif') },
         ],
         baris: daftar,
         aksi: (u) => [
-          { aksi: 'ubah', label: 'Ubah', d: IKON.ubah },
-          { aksi: 'reset', label: 'Reset password', d: IKON.kunci },
-          ...(sendiri(u) ? [] : [{ aksi: 'aktif', label: u.aktif ? 'Nonaktifkan' : 'Aktifkan', d: IKON.aktif, bahaya: u.aktif }]),
+          { aksi: 'ubah', label: 'Edit', d: IKON.ubah, nada: 'biru' },
+          { aksi: 'reset', label: 'Reset Password', d: IKON.kunci, nada: 'amber' },
+          sendiri(u)
+            ? { aksi: 'hapus', label: 'Akun sendiri tidak dapat dihapus', d: IKON.hapus, bahaya: true, nonaktif: true }
+            : { aksi: 'hapus', label: 'Hapus', d: IKON.hapus, bahaya: true },
         ],
         pilih: {
           aktif: pilihan.aktif,
@@ -62,7 +67,7 @@ export function render(wadah, saya) {
         },
         kosong: {
           ikon: IK_ORANG, judul: 'Belum ada pengguna',
-          teks: 'Buat akun Admin / Petugas TU atau Kepala Sekolah lewat tombol Tambah Pengguna.',
+          teks: 'Buat akun Administrator, Petugas TU, atau Kepala Sekolah lewat tombol Tambah Pengguna.',
         },
       })
       + barAksiBawah({ pilihan, satuan: SATUAN, sibuk }))
@@ -90,7 +95,7 @@ export function render(wadah, saya) {
     sibuk = false
     wadah.innerHTML = judulHalaman({
       judul: 'Kelola Pengguna',
-      sub: 'Manajemen akun Admin / Petugas TU dan Kepala Sekolah.',
+      sub: 'Manajemen akun Administrator, Petugas TU, dan Kepala Sekolah.',
       aksi: `<button type="button" data-aksi="tambah" class="${KELAS.utama}">+ Tambah Pengguna</button>`,
     }) + '<div data-isi></div>'
     pasangAksi(wadah, PETA_DAFTAR)
@@ -98,18 +103,33 @@ export function render(wadah, saya) {
     gambarIsi()
   }
 
-  async function gantiAktif(u) {
+  function sibukTombol(el, sibuk) {
+    if (!el || !el.isConnected) return
+    if (sibuk) { el.dataset.html = el.innerHTML; el.innerHTML = spinner('h-[18px] w-[18px]'); el.disabled = true }
+    else { el.innerHTML = el.dataset.html || el.innerHTML; el.disabled = false }
+  }
+
+  async function hapus(u, el) {
     if (!u || sendiri(u)) return
+    const ya = await dialogKonfirmasi({
+      judul: 'Hapus pengguna?',
+      pesan: 'Akun ' + u.username + ' akan dihapus permanen dan tidak bisa login lagi. Data tidak dapat dikembalikan.',
+      ya: 'Hapus',
+      bahaya: true,
+    })
+    if (!ya || !wadah.isConnected) return
+    sibukTombol(el, true)
     try {
-      await panggilApi('penggunaAktif', { id: u.id, aktif: !u.aktif })
-      tampilPesan({ jenis: 'sukses', teks: u.username + (u.aktif ? ' dinonaktifkan' : ' diaktifkan') })
+      await panggilApi('penggunaHapus', { id: u.id })
+      tampilPesan({ jenis: 'sukses', teks: 'Pengguna ' + u.username + ' dihapus' })
       if (wadah.isConnected) muat()
     } catch (err) {
+      sibukTombol(el, false)
       tampilPesan({ jenis: 'galat', teks: err.message })
     }
   }
 
-  async function reset(u) {
+  async function reset(u, el) {
     if (!u) return
     const ya = await dialogKonfirmasi({
       judul: 'Reset password?',
@@ -117,16 +137,13 @@ export function render(wadah, saya) {
       ya: 'Reset password',
     })
     if (!ya) return
+    sibukTombol(el, true)
     try {
       const hasil = await panggilApi('penggunaResetPassword', { id: u.id })
-      tampilPesan({
-        jenis: 'sukses',
-        tetap: true,
-        judul: 'Password Baru Berhasil Dibuat',
-        tombol: 'Sudah saya catat',
-        teks: 'Password baru untuk ' + hasil.username + ': ' + hasil.passwordBaru + ' (catat sekarang, tidak akan ditampilkan lagi)',
-      })
+      sibukTombol(el, false)
+      await dialogPasswordBaru({ username: hasil.username, password: hasil.passwordBaru })
     } catch (err) {
+      sibukTombol(el, false)
       tampilPesan({ jenis: 'galat', teks: err.message })
     }
   }
@@ -158,8 +175,8 @@ export function render(wadah, saya) {
   const PETA_DAFTAR = {
     tambah: () => tampilForm(null),
     ubah: (id) => { const u = cari(id); if (u) tampilForm(u) },
-    reset: (id) => reset(cari(id)),
-    aktif: (id) => gantiAktif(cari(id)),
+    reset: (id, el) => reset(cari(id), el),
+    hapus: (id, el) => hapus(cari(id), el),
     'mulai-pilih': () => { pilihan.mulai(); gambarIsi() },
     'selesai-pilih': () => { pilihan.selesai(); gambarIsi() },
     'pilih-semua': () => { pilihan.balikSemua(); gambarIsi() },
@@ -175,14 +192,14 @@ export function render(wadah, saya) {
 
     wadah.innerHTML = judulHalaman({
       judul: ubah ? 'Ubah Data Pengguna' : 'Tambah Pengguna Baru',
-      sub: ubah ? 'Perbarui nama dan peran akun.' : 'Buat akun baru untuk Admin / Petugas TU atau Kepala Sekolah.',
+      sub: ubah ? 'Perbarui nama, username, dan peran akun.' : 'Buat akun baru untuk Administrator, Petugas TU, atau Kepala Sekolah.',
       aksi: `<button type="button" data-aksi="kembali" class="${KELAS.tombol}">Kembali</button>`,
     }) + `<form novalidate class="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8 shadow-sm">
       <div class="grid gap-5 sm:grid-cols-2">
         ${medan({ label: 'Nama Lengkap', nama: 'nama', nilai: nilai.nama, wajib: true, placeholder: 'Nama lengkap', atribut: { autocomplete: 'off' } })}
         ${medan({
-          label: 'Username', nama: 'username', nilai: nilai.username, wajib: true, nonaktif: ubah,
-          catatan: ubah ? 'Username tidak dapat diubah.' : '', placeholder: 'Contoh: petugas.tu',
+          label: 'Username', nama: 'username', nilai: nilai.username, wajib: true,
+          catatan: 'Huruf kecil, angka, titik, strip, garis bawah (3-30 karakter).', placeholder: 'Contoh: petugas.tu',
           atribut: { autocapitalize: 'none', autocomplete: 'off', spellcheck: 'false' },
         })}
         ${ubah ? '' : medan({
@@ -201,13 +218,18 @@ export function render(wadah, saya) {
       e.preventDefault()
       if (form.querySelector('[data-simpan]').disabled) return
       const isian = bacaForm(form, ['nama', 'username', 'password', 'peran'])
+      isian.username = isian.username.trim().toLowerCase()
       const galat = periksa(isian, ubah ? ATURAN_DASAR : ATURAN_BARU)
       if (Object.keys(galat).length) { tandaiGalat(form, galat); notif.kolomGalat(); return }
       sibukSimpan(form, true)
       try {
-        await panggilApi('penggunaSimpan', { id: ubah ? u.id : '', ...isian })
+        const hasil = await panggilApi('penggunaSimpan', { id: ubah ? u.id : '', ...isian })
+        tampilPesan({ jenis: 'sukses', teks: ubah ? 'Data pengguna ' + isian.username + ' berhasil diperbarui' : 'Pengguna ' + isian.username + ' berhasil dibuat' })
+        // Admin mengubah akunnya sendiri: sinkronkan nama/username di header.
+        if (ubah && sendiri(u) && hasil && hasil.pengguna) {
+          window.dispatchEvent(new CustomEvent('profil-berubah', { detail: hasil.pengguna }))
+        }
         if (id !== layar || !wadah.isConnected) return
-        tampilPesan({ jenis: 'sukses', teks: 'Data pengguna berhasil disimpan' })
         tampilDaftar(true)
       } catch (err) {
         if (id !== layar || !wadah.isConnected) return

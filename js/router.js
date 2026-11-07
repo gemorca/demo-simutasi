@@ -6,13 +6,13 @@ export const HALAMAN = {
   siswaMasuk: () => import('./halaman/mutasi.js'),
   persetujuan: () => import('./halaman/persetujuan.js'),
   laporan: () => import('./halaman/laporan.js'),
+  log: () => import('./halaman/log.js'),
   pengaturan: () => import('./halaman/pengaturan.js'),
-  gantiPassword: () => import('./halaman/gantiPassword.js'),
+  profil: () => import('./halaman/profil.js'),
 }
 
-export const TAHAP = {
-  imporSiswa: 5, log: 5,
-}
+// Placeholder untuk halaman yang belum dibuat (kosong: semua halaman sudah ada).
+export const TAHAP = {}
 
 export function bacaHalaman() {
   return window.location.hash.replace(/^#\/?/, '') || 'beranda'

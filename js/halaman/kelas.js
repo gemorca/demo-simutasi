@@ -16,6 +16,11 @@ const ATURAN = {
 const SATUAN = 'kelas'
 
 export function render(wadah, pengguna) {
+  // Kelola Kelas khusus Administrator. Menu sudah disembunyikan; ini pengaman jika halaman dibuka langsung.
+  if (!pengguna || pengguna.peran !== 'admin') {
+    wadah.innerHTML = judulHalaman({ judul: 'Kelola Kelas', sub: 'Halaman ini hanya dapat diakses Administrator Utama.' })
+    return
+  }
   let daftar = []
   let sibuk = false
   let layar = 0
@@ -36,7 +41,7 @@ export function render(wadah, pengguna) {
           { judul: 'Kuota', rata: 'angka', nilai: (k) => k.kuota },
           { judul: 'Aktif', rata: 'angka', nilai: (k) => k.jumlah_aktif },
           { judul: 'Sisa', rata: 'angka', html: (k) => `<span class="${k.sisa <= 0 ? 'font-bold text-rose-600' : ''}">${esc(k.sisa)}</span>` },
-          { judul: 'Wali Kelas', nilai: (k) => k.wali_kelas || '-' },
+          { judul: 'Wali Kelas', isi: 'kiri', html: (k) => (k.wali_kelas ? esc(k.wali_kelas) : '<span class="block text-center">-</span>') },
         ],
         baris: daftar,
         aksi: () => [
@@ -175,8 +180,8 @@ export function render(wadah, pengguna) {
       sibukSimpan(form, true)
       try {
         await panggilApi('kelasSimpan', { id: ubah ? k.id : '', ...isian })
+        tampilPesan({ jenis: 'sukses', teks: ubah ? 'Data kelas ' + isian.nama_kelas + ' berhasil diperbarui' : 'Kelas ' + isian.nama_kelas + ' berhasil dibuat' })
         if (saya !== layar || !wadah.isConnected) return
-        tampilPesan({ jenis: 'sukses', teks: 'Kelas berhasil disimpan' })
         tampilDaftar(true)
       } catch (err) {
         if (saya !== layar || !wadah.isConnected) return

@@ -73,6 +73,7 @@ export function renderForm(wadah, { id = '', onSelesai }) {
       sibukSimpan(form, true, TEKS_SIMPAN)
       try {
         const hasil = await panggilApi('mutasiSimpan', { id: m ? m.id : id, ...bacaForm(form, KOLOM) })
+        tampilPesan({ jenis: 'sukses', teks: id ? 'Data siswa masuk berhasil diperbarui' : 'Siswa masuk berhasil ditambahkan sebagai Draft' })
         if (!akar.isConnected) return
         onSelesai(hasil.id)
       } catch (err) {

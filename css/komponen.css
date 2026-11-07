@@ -248,3 +248,24 @@ form[data-filter] .flt-toggle { display: none; }
     font-size: 0.875rem !important;
   }
 }
+
+/* Penampil berkas (modal besar). Desktop: tinggi tetap, lebar besar. HP: layar penuh. */
+dialog.dlg-penuh {
+  width: min(96vw, 76rem);
+  height: min(90dvh, 52rem);
+  max-height: 90dvh;
+  overflow: hidden;
+}
+@media (max-width: 639px) {
+  dialog.dlg.dlg-penuh {
+    width: 100%;
+    max-width: 100%;
+    height: 100dvh;
+    max-height: 100dvh;
+    margin: 0;
+    border-radius: 0;
+    padding-bottom: 0;
+    animation: none;
+  }
+  dialog.dlg.dlg-penuh::before { display: none; }
+}
