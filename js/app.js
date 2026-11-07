@@ -149,11 +149,6 @@ function pasangEvent() {
   $('scrim').addEventListener('click', () => bukaLaci(false))
   window.matchMedia('(min-width: 640px)').addEventListener('change', (e) => { if (e.matches) bukaLaci(false) })
 
-  $('notif-tombol').addEventListener('click', () => {
-    bukaAkun(false)
-    if (bacaHalaman() === 'persetujuan') tampilHalaman()
-    else pindah('persetujuan')
-  })
   $('akun-tombol').addEventListener('click', () => bukaAkun($('akun-panel').hidden))
   $('btn-profil').addEventListener('click', () => { bukaAkun(false); pindah('profil') })
   $('btn-keluar').addEventListener('click', () => { bukaAkun(false); keluar() })

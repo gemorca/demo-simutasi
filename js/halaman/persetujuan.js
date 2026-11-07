@@ -80,6 +80,9 @@ export function render(wadah, pengguna) {
   }
 
   const tersimpan = pulihkanTerbuka(PEMILIK)
-  if (tersimpan) buka(tersimpan.id, tersimpan.tab)
+  let langsung = ''
+  try { langsung = sessionStorage.getItem('sim_buka_mutasi') || ''; sessionStorage.removeItem('sim_buka_mutasi') } catch { /* abaikan */ }
+  if (langsung) buka(langsung)
+  else if (tersimpan) buka(tersimpan.id, tersimpan.tab)
   else tampilDaftar()
 }

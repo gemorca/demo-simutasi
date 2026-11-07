@@ -310,3 +310,6 @@ dialog.dlg-penuh {
     max-width: calc(100vw - 2rem);
   }
 }
+
+/* Atribut hidden harus menang atas kelas display Tailwind (grid/flex). */
+#notif[hidden], #notif-panel[hidden], #notif-angka[hidden] { display: none !important; }
