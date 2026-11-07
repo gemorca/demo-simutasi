@@ -202,18 +202,12 @@ dialog.dlg {
   }
 }
 
-/* Form Filter Responsive Toggle */
-form[data-filter] .flt-toggle { display: none; }
+/* Form Filter: selalu tampil. HP: cari 1 baris penuh, sisanya 2 kolom. */
 @media (max-width: 639px) {
-  form[data-filter] .flt-toggle { display: inline-flex; }
   form[data-filter] .flt-cari { flex: 1 1 100%; min-width: 0; }
-  form[data-filter] .flt-lain { flex: 1 1 100%; }
-  form[data-filter] .flt-toggle,
-  form[data-filter] > button[type="submit"] {
-    flex: 1 1 0;
-    min-height: 2.75rem;
-  }
-  form[data-filter].flt-tutup .flt-lain { display: none; }
+  form[data-filter] .flt-lain { flex: 1 1 calc(50% - 0.375rem); min-width: 0; }
+  form[data-filter] .flt-lain input,
+  form[data-filter] .flt-lain select { min-width: 0; width: 100%; }
 }
 
 /* Detail Mutasi Custom Layout */

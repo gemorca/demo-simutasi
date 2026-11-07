@@ -130,19 +130,19 @@ function tampil(lap) {
 
 export function render(wadah) {
   wadah.innerHTML = `<div class="mx-auto max-w-5xl">
-    <div class="flex flex-wrap items-center gap-5 border-b border-slate-200 pb-6">
+    <div class="flex flex-wrap items-center gap-x-4 gap-y-4 border-b border-slate-200 pb-6">
       <div class="h-14 w-14 rounded-2xl bg-slate-100 border border-slate-200 grid place-items-center shrink-0">
         <img src="assets/logo-sekolah.png" alt="Logo sekolah" width="48" height="48" class="h-10 w-10 object-contain" onerror="this.src='assets/favicon.svg'">
       </div>
-      <div class="min-w-0 flex-1">
+      <div class="min-w-0 flex-1 basis-40">
         <p data-sekolah class="text-xs font-bold uppercase tracking-wider text-blue-600"></p>
-        <h2 class="text-2xl font-bold tracking-tight text-slate-900">Laporan Rekapitulasi</h2>
+        <h2 class="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">Laporan Rekapitulasi</h2>
         <p class="text-sm font-medium text-slate-500">Data siswa masuk yang telah disetujui Kepala Sekolah</p>
       </div>
-      <div class="flex flex-wrap gap-2.5 print:hidden">
-        <button type="button" data-pdf class="${KELAS.utama}" disabled>Unduh PDF</button>
-        <button type="button" data-excel class="${KELAS.tombol}" disabled>Unduh Excel</button>
-        <button type="button" data-cetak class="${KELAS.tombol}" disabled>Cetak</button>
+      <div class="grid w-full grid-cols-3 gap-2 sm:flex sm:w-auto sm:gap-2.5 print:hidden">
+        <button type="button" data-pdf class="${KELAS.utama} !px-2 sm:!px-4" disabled>Unduh PDF</button>
+        <button type="button" data-excel class="${KELAS.tombol} !px-2 sm:!px-4" disabled>Unduh Excel</button>
+        <button type="button" data-cetak class="${KELAS.tombol} !px-2 sm:!px-4" disabled>Cetak</button>
       </div>
     </div>
     <section class="mt-6 print:hidden" aria-labelledby="lp-periode"><h3 id="lp-periode" class="mb-3 font-bold text-slate-900">Filter Periode Laporan</h3><div data-periode></div></section>

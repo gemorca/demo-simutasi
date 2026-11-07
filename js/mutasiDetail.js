@@ -214,7 +214,7 @@ export function renderDetail(wadah, { id, pemilik = '', tabAwal = 'data', hanyaB
         ['Catatan petugas', m.catatan || '-'],
       ]],
     ]
-    return `<div role="tabpanel" id="panel-data" aria-labelledby="tab-data" class="grid gap-5 lg:grid-cols-3">${kelompok.map(([judul, baris]) =>
+    return `<div role="tabpanel" id="panel-data" aria-labelledby="tab-data" class="grid min-w-0 grid-cols-1 gap-5 lg:grid-cols-3">${kelompok.map(([judul, baris]) =>
       `<section aria-label="${esc(judul)}" class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <h3 class="mb-4 font-bold text-slate-900 border-b border-slate-100 pb-2">${esc(judul)}</h3>
         <dl class="grid gap-3.5 text-sm">${baris.map(([label, nilai]) =>
@@ -227,13 +227,13 @@ export function renderDetail(wadah, { id, pemilik = '', tabAwal = 'data', hanyaB
     const daftar = wajib.concat(['Lainnya']).map((jd) => {
       const files = lampiran.filter((l) => l.jenis_dokumen === jd)
       const wajibIni = wajib.includes(jd)
-      return `<li class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm flex flex-col justify-between">
-        <div>
+      return `<li class="flex min-w-0 flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div class="min-w-0">
           <div class="mb-3 flex items-center justify-between gap-2"><span class="font-bold text-slate-900">${esc(jd)}</span>
             ${wajibIni ? lencana(files.length ? 'Disetujui' : 'Ditolak', files.length ? 'Lengkap' : 'Belum') : '<span class="text-xs font-semibold text-slate-400 bg-slate-100 px-2 py-0.5 rounded">Opsional</span>'}</div>
           ${files.length === 0 ? '<p class="text-sm font-medium text-slate-400">Belum ada file terunggah</p>' : ''}
-          ${files.map((l) => `<div class="flex items-center justify-between gap-2 py-1.5 text-sm border-t border-slate-100">
-            <span class="min-w-0 truncate font-semibold text-slate-700" title="${esc(l.nama_file)}">${esc(l.nama_file)}</span>
+          ${files.map((l) => `<div class="flex min-w-0 items-center justify-between gap-2 border-t border-slate-100 py-1.5 text-sm">
+            <span class="min-w-0 flex-1 truncate font-semibold text-slate-700" title="${esc(l.nama_file)}">${esc(l.nama_file)}</span>
             <span class="flex shrink-0 gap-1.5">
               <button type="button" data-aksi="lihat" data-id="${esc(l.id)}" class="${KELAS.tombol} ${KELAS.kecil}">Lihat File</button>
               ${bisaUbah && bisaHapusMutasi ? `<button type="button" data-aksi="hapus-lampiran" data-id="${esc(l.id)}" data-sibuk class="${KELAS.tombol} ${KELAS.kecil} text-rose-600 hover:bg-rose-50 border-rose-200"${sibuk ? ' disabled' : ''}>Hapus</button>` : ''}
@@ -245,7 +245,7 @@ export function renderDetail(wadah, { id, pemilik = '', tabAwal = 'data', hanyaB
     }).join('')
     return `<div role="tabpanel" id="panel-lampiran" aria-labelledby="tab-lampiran">
       <p class="mb-4 text-sm font-medium text-slate-500"><strong class="text-slate-900 font-bold">${lengkap} dari ${wajib.length}</strong> dokumen wajib lengkap. Format PDF, JPG, atau PNG, maksimal ${esc(maksMb)} MB per file.${wajib.includes(FOTO) ? ' Pas Foto hanya JPG atau PNG.' : ''}</p>
-      <ul class="grid gap-5 md:grid-cols-2">${daftar}</ul></div>`
+      <ul class="grid min-w-0 grid-cols-1 gap-5 md:grid-cols-2">${daftar}</ul></div>`
   }
 
   function panelRiwayat(m) {
@@ -254,7 +254,7 @@ export function renderDetail(wadah, { id, pemilik = '', tabAwal = 'data', hanyaB
     const tampil = semuaRiwayat ? urut : urut.slice(0, BATAS_RIWAYAT)
     const detailRiwayat = (r) => (r.detail && !r.detail.endsWith(m.nama_siswa) ? r.detail : '')
     return `<div role="tabpanel" id="panel-riwayat" aria-labelledby="tab-riwayat">
-      <ol class="grid gap-4 border-l-2 border-slate-200 pl-5">${tampil.map((r) =>
+      <ol class="grid min-w-0 grid-cols-1 gap-4 border-l-2 border-slate-200 pl-5">${tampil.map((r) =>
         `<li class="text-sm"><strong class="block font-bold text-slate-900">${esc(NAMA_AKSI[r.aksi] || r.aksi)}</strong>
           <small class="block text-xs font-semibold text-slate-400 mt-0.5">${esc(r.waktu)} (WITA) &middot; ${esc(r.pengguna)}</small>
           ${detailRiwayat(r) ? `<span class="block text-slate-600 mt-1">${esc(detailRiwayat(r))}</span>` : ''}</li>`).join('')}</ol>
